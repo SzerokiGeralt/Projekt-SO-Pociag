@@ -1,11 +1,15 @@
 #include "mojeFunkcje.h"
 
+//Obsługa sygnału SIGINT
 void handle_sigint(int sig) {
     printf("\nOdebrano sygnal SIGINT (CTRL+C). Zamykam program...\n{{{DO IMPLEMENTACJI}}}\n");
+    sem_destroy(sem_get(".", 1, 2));
+    sem_destroy(sem_get(".", 2, 2));
     exit(0);
 }
 
 int main() {
+    setbuf(stdout, NULL);
     pid_t zawiadowca_pid, kierownik_pid;
     signal(2, handle_sigint);
 
@@ -18,6 +22,7 @@ int main() {
         exit(1);
     }
 
+    sleep(1);
 
     // Uruchomienie procesu kierownika pociągu
     if ((kierownik_pid = fork()) == 0) {
@@ -26,13 +31,16 @@ int main() {
         exit(1);
     }
 
+    sleep(1);
+
     // Uruchomienie procesów pasażerów
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 10; i++) {
         if (fork() == 0) {
             execl("./pasazer", "pasazer", NULL);
             perror("Nie udalo sie uruchomic procesu pasazer");
             exit(1);
         }
+        sleep(0.6);
     }
 
     // Oczekiwanie na zakończenie procesów podrzędnych
