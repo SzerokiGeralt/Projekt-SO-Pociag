@@ -34,13 +34,13 @@ int main() {
     sleep(1);
 
     // Uruchomienie procesów pasażerów
-    for (int i = 0; i < 10; i++) {
+    while (1) {
         if (fork() == 0) {
             execl("./pasazer", "pasazer", NULL);
             perror("Nie udalo sie uruchomic procesu pasazer");
             exit(1);
         }
-        sleep(0.6);
+        sleep(2);
     }
 
     // Oczekiwanie na zakończenie procesów podrzędnych
