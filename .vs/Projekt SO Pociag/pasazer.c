@@ -36,7 +36,7 @@ int main() {
          //wysyła wiadomość do kierownika że jest z rowerem
         entrance = get_message_queue(".", 1);
         send_message(entrance, entrance_message);
-        printf("\nPasazer: Pasazer %d z rowerem czeka u progu", id);
+        //printf("\nPasazer: Pasazer %d z rowerem czeka u progu", id);
         sem_wait(entrance_sem, 1);
         sem_raise(platform_sem, 1);
     } else {
@@ -45,13 +45,13 @@ int main() {
         entrance = get_message_queue(".", 0);
         //wysyła wiadomość do kierownika że jest bez roweru
         send_message(entrance, entrance_message);
-        printf("\nPasazer: Pasazer %d czeka u progu", id);
+        //printf("\nPasazer: Pasazer %d czeka u progu", id);
         sem_wait(entrance_sem, 0);
         sem_raise(platform_sem, 0);
     }
 
     //wsiada do pociągu
-    printf("\nPasazer: Pasazer %d wsiadł do pociągu", id);
+    //printf("\nPasazer: Pasazer %d wsiadł do pociągu", id);
 
     while (1) {
         sleep(1);

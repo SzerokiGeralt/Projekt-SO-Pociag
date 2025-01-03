@@ -24,11 +24,13 @@ int main() {
 
     sleep(1);
 
-    // Uruchomienie procesu kierownika pociągu
-    if ((kierownik_pid = fork()) == 0) {
-        execl("./kierownik", "kierownik", NULL);
-        perror("Nie udalo sie uruchomic procesu kierownik");
-        exit(1);
+    // Uruchomienie procesów kierownika pociągu
+    for (int i = 0; i < 5; i++) {
+        if ((kierownik_pid = fork()) == 0) {
+            execl("./kierownik", "kierownik", NULL);
+            perror("Nie udalo sie uruchomic procesu kierownik");
+            exit(1);
+        }
     }
 
     sleep(1);
