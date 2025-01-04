@@ -49,11 +49,16 @@ int main() {
 
     printf("\nNowy zawiadowca stacji PID: %d", getpid());
 
+    // Przygotowanie kolejek wiadomości
     int train_msq = get_message_queue(".", 2); // Kolejka zawiadowcy
     struct message* train_message = malloc(sizeof(struct message));
+    // Przygotowanie semaforów
     int platform_sem = sem_create(".", 1, 2);
     sem_set_value(platform_sem, 0, 1);
     sem_set_value(platform_sem, 1, 1);
+    int entrance_sem = sem_create(".", 2, 2);
+    sem_set_value(entrance_sem, 0, 1);
+    sem_set_value(entrance_sem, 1, 1);
 
     while (1) {
         // Oczekiwanie na pociąg

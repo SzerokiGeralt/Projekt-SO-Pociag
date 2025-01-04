@@ -112,6 +112,11 @@ int main() {
     int bikes = 0;
     int passanger_pid;
     int train_ID = getpid();
+    pid_t* train = malloc(sizeof(int)*(max_passengers));
+    for (int i = 0; i < max_passengers; i++){
+        train[i] = 0;
+    }
+    
 
     // Przygotowanie wiadomości i kolejek
     struct message* entrance_message = malloc(sizeof(struct message));
@@ -122,9 +127,7 @@ int main() {
     int my_msq = get_message_queue(".", train_ID); // Kolejka prywatna kierownika
 
     // Przygotowanie semaforów
-    int entrance_sem = sem_create(".", 2, 2);
-    sem_set_value(entrance_sem, 0, 1);
-    sem_set_value(entrance_sem, 1, 1);
+    int entrance_sem = sem_get(".", 2, 2);
 
     while (1) {
         // Powiadomienie zawiadowcy, że pociąg czeka na wjazd
@@ -143,6 +146,7 @@ int main() {
             if (passengers < max_passengers) {
                 if (receive_message_no_wait(msq0, 1, entrance_message)) {
                     sem_raise(entrance_sem, 0);
+                    train[passengers] = entrance_message->ktype;
                     passengers++;
                     passanger_pid = entrance_message->ktype;
                     printf("\nKierownik: pasażer %d wsiadł do pociągu %d.", passanger_pid, train_ID);
@@ -151,6 +155,7 @@ int main() {
             if (bikes < max_bikes && passengers < max_passengers) {
                 if (receive_message_no_wait(msq1, 1, entrance_message)) {
                     sem_raise(entrance_sem, 1);
+                    train[passengers] = entrance_message->ktype;
                     passengers++;
                     bikes++;
                     passanger_pid = entrance_message->ktype;
@@ -169,10 +174,17 @@ int main() {
 
         // Wyjazd pociągu
         printf("\nKierownik: pociąg %d odjeżdża.", train_ID);
-        sleep(30);
+        sleep(15);
+        // Pociag dotarł do celu
+        printf("\nKierownik: pociąg %d dotarł do celu.", train_ID);
         // Zerowanie liczników
         passengers = 0;
         bikes = 0;
+        for (int i = 0; i < max_passengers; i++){
+            kill(train[i], 2);
+            train[i] = 0;
+        }
+        sleep(15);
         printf("\nKierownik: pociąg %d wrócił.", train_ID);
     }
 
