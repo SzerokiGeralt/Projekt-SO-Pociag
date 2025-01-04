@@ -5,7 +5,6 @@ int skip_loading = 0;
 // Obsługa sygnału SIGINT
 void handle_sigint(int sig) {
     printf("\nKierownik: Odebrano sygnal SIGINT");
-    destroy_message_queue(get_message_queue(".", getpid())); // Usunięcie kolejki kierownika
     exit(0);
 }
 
@@ -22,8 +21,8 @@ int main() {
     printf("\nNowy kierownik pociagu PID: %d", getpid());
 
     // Inicjalizacja zmiennych
-    int max_passengers = 20;
-    int max_bikes = 5;
+    int max_passengers = 10;
+    int max_bikes = 3;
     int passengers = 0;
     int bikes = 0;
     int passanger_pid;
@@ -41,7 +40,7 @@ int main() {
     int msq0 = get_message_queue(".", 0);
     int msq1 = get_message_queue(".", 1);
     int train_msq = get_message_queue(".", 2); //Kolejka zawiadowcy
-    int my_msq = get_message_queue(".", train_ID); // Kolejka prywatna kierownika
+    int my_msq = get_message_queue(".", 3); // Kolejka prywatna kierownika
 
     // Przygotowanie semaforów
     int entrance_sem = sem_get(".", 2, 2);
@@ -95,6 +94,10 @@ int main() {
         } else {
             printf("\nKierownik: pominięto załadunek pociągu %d.", train_ID);
             skip_loading = 0;
+            if (passengers == 0) {
+                printf("\nKierownik: pociąg %d jest pusty znaczy ze nie ma nikogo do odwiezienia ADIOS", train_ID);
+                raise(2);
+            }
         }
         
         // Wyjazd pociągu

@@ -140,8 +140,6 @@ void sem_wait(int sem_ID, int num) {
 }
 
 
-
-
 // Operacja V (podnoszenie semafora)
 void sem_raise(int sem_ID, int num) {
     struct sembuf sops = {num, 1, 0};
@@ -152,6 +150,15 @@ void sem_raise(int sem_ID, int num) {
     }
 }
 
+// Opuszczenie semafora
+void sem_lower_no_wait(int sem_ID, int num) {
+    struct sembuf sops = {num, -1, IPC_NOWAIT};
+    if (semop(sem_ID, &sops, 1) == -1) {
+        printf("Blad wait %d %d\n", sem_ID, num);
+        perror("Blad wait");
+        exit(1);
+    }
+}
 
 // Tworzenie pamięci współdzielonej o pojemnosci x * int
 int shared_mem_create(char* unique_path, int project_name, int x) {

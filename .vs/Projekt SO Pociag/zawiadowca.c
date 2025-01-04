@@ -11,10 +11,35 @@ int wait_time(int value) {
     return 0;
 }
 
-int wait_loaded(long train_ID, struct message* train_message) {
+int wait_loaded(long train_ID, struct message* train_message, int msq_ID) {
     // Oczekiwanie na informację o pełnym pociągu
-    receive_message(get_message_queue(".", train_ID), 2, train_message);
+    receive_message(msq_ID, 2, train_message);
     return 0;
+}
+
+int force_passanger_exit_queue() {
+    printf("\nZawiadowca: Prosze odsunac sie od krawedzi peronu.");
+    struct message* entrance_message = malloc(sizeof(struct message));
+    long temp_pid = 0;
+    // Wysłanie sygnału do czekajacych pasażerów o opuszczeniu kolejki
+    if (receive_message_no_wait(get_message_queue(".", 0), 1, entrance_message)) {
+        temp_pid = entrance_message->ktype;
+        kill(temp_pid, 12);
+        sem_raise(sem_get(".", 2, 2), 0);
+    }
+    if (receive_message_no_wait(get_message_queue(".", 1), 1, entrance_message)) {
+        if (temp_pid != 0) {
+            kill(entrance_message->ktype, 12);
+            sem_raise(sem_get(".", 2, 2), 1);
+        }
+    }
+
+    free(entrance_message);
+}
+
+void open_gates() {
+    sem_raise(sem_get(".", 1, 2), 0);
+    sem_raise(sem_get(".", 1, 2), 1);
 }
 
 int main() {
@@ -24,15 +49,16 @@ int main() {
     printf("\nNowy zawiadowca stacji PID: %d", getpid());
 
     // Przygotowanie kolejek wiadomości
-    int train_msq = get_message_queue(".", 2); // Kolejka zawiadowcy
+    int arriving_train_msq = get_message_queue(".", 2); // Kolejka zawiadowcy
+    int waiting_train_msq = get_message_queue(".", 3); // Kolejka kierownika
     struct message* train_message = malloc(sizeof(struct message));
     // Przygotowanie semaforów
     int platform_sem = sem_create(".", 1, 2);
-    sem_set_value(platform_sem, 0, 1);
-    sem_set_value(platform_sem, 1, 1);
+    sem_set_value(platform_sem, 0, 0);
+    sem_set_value(platform_sem, 1, 0);
     int entrance_sem = sem_create(".", 2, 2);
-    sem_set_value(entrance_sem, 0, 1);
-    sem_set_value(entrance_sem, 1, 1);
+    sem_set_value(entrance_sem, 0, 0);
+    sem_set_value(entrance_sem, 1, 0);
     pid_t wait_time_pid;
     pid_t wait_loaded_pid;
     pid_t finished_pid;
@@ -41,14 +67,16 @@ int main() {
     while (1) {
         // Oczekiwanie na pociąg
         printf("\nZawiadowca: oczekiwanie na pociąg.");
-        receive_message(train_msq, 1, train_message);
+        receive_message(arriving_train_msq, 1, train_message);
         int train_ID = train_message->ktype;
 
         printf("\nZawiadowca: pociąg %d wjezdza na peron.", train_ID);
 
         // Powiadomienie kierownika, że może rozpocząć załadunek
         train_message->mtype = 1; // Zgoda na załadunek
-        send_message(get_message_queue(".", train_ID), train_message);
+        send_message(waiting_train_msq, train_message);
+
+        open_gates();
 
         // Tworzenie procesów sprawdzających warunki odjazdu
         wait_time_pid = fork();
@@ -58,7 +86,7 @@ int main() {
         }
         wait_loaded_pid = fork();
         if (wait_loaded_pid == 0) {
-            wait_loaded(train_ID, train_message);
+            wait_loaded(train_ID, train_message, waiting_train_msq);
             exit(0);
         }
 
@@ -72,7 +100,11 @@ int main() {
             // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
             wait(NULL);
 
-            //Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
+            // Nie pozwalamy pasażerom na wsiadanie
+            force_passanger_exit_queue();
+
+            // Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
+            // Zezwalamy na odjazd pociągu
             kill(train_ID, 10);
         } else {
             printf("\nZawiadowca: pociąg %d jest pełny.", train_ID);
@@ -81,9 +113,13 @@ int main() {
             // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
             wait(NULL);
 
-            //Odjazd pociągu regularny
+            // Nie pozwalamy pasażerom na wsiadanie
+            force_passanger_exit_queue();
+
+            // Pociąg jest pełny
+            // Zezwalamy na odjazd pociągu
             train_message->mtype = 2;
-            send_message(get_message_queue(".", train_ID), train_message);
+            send_message(waiting_train_msq, train_message);
             printf("\nZawiadowca: pociąg %d odjeżdża.", train_ID);
         }
     }
