@@ -1,16 +1,12 @@
 #include "mojeFunkcje.h"
+#define MAX_KIEROWNIKOW 5
 
-//Obsługa sygnału SIGINT
-void handle_sigint(int sig) {
-    printf("\nOdebrano sygnal SIGINT (CTRL+C). Zamykam program...\n{{{DO IMPLEMENTACJI}}}\n");
-    sem_destroy(sem_get(".", 1, 2));
-    sem_destroy(sem_get(".", 2, 2));
-    exit(0);
-}
+void handle_sigint();
+pid_t zawiadowca_pid;
+pid_t kierownik_pid[MAX_KIEROWNIKOW];
 
 int main() {
     setbuf(stdout, NULL);
-    pid_t zawiadowca_pid, kierownik_pid;
     signal(2, handle_sigint);
 
     printf("Uruchomiono zaawansowana symulacje kolejowa\nstworzona przez Karol Kapusta.\nProject not sponsored by \"Koleje Malopolskie\"\n\n");
@@ -25,8 +21,8 @@ int main() {
     sleep(1);
 
     // Uruchomienie procesów kierownika pociągu
-    for (int i = 0; i < 5; i++) {
-        if ((kierownik_pid = fork()) == 0) {
+    for (int i = 0; i < MAX_KIEROWNIKOW; i++) {
+        if ((kierownik_pid[i] = fork()) == 0) {
             execl("./kierownik", "kierownik", NULL);
             perror("Nie udalo sie uruchomic procesu kierownik");
             exit(1);
@@ -48,6 +44,21 @@ int main() {
     // Oczekiwanie na zakończenie procesów podrzędnych
     while (wait(NULL) > 0);
 
-    printf("Master: Wszystkie procesy zakonczone.\n");
+    printf("\nMaster: Wszystkie procesy zakonczone.");
     return 0;
+}
+
+// Obsługa sygnału SIGINT
+void handle_sigint(int sig) {
+    printf("\nMaster: Odebrano sygnal SIGINT");
+
+    // Usuwanie zasobów IPC
+    destroy_message_queue(get_message_queue(".", 0));
+    destroy_message_queue(get_message_queue(".", 1));
+    destroy_message_queue(get_message_queue(".", 2));
+
+    sem_destroy(sem_get(".", 1, 2));
+    sem_destroy(sem_get(".", 2, 2));
+
+    exit(0);
 }

@@ -8,7 +8,7 @@ void handle_sigkill () {
 int main() {
     // Inicjalizacja
     srand(time(NULL));
-    signal(9, handle_sigkill);
+    signal(2, handle_sigkill);
     setbuf(stdout, NULL);
 
     // Inicjalizacja zmiennych

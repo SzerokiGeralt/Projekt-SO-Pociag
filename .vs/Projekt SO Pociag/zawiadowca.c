@@ -39,14 +39,13 @@ int main() {
 #include "mojeFunkcje.h"
 
 void handle_sigint(int sig) {
-    destroy_message_queue(get_message_queue(".", 2));
-    sem_destroy(sem_get(".", 1, 2));
+    printf("\nZawiadowca: Odebrano sygnal SIGINT");
     exit(0);
 }
 
 int main() {
     setbuf(stdout, NULL);
-    signal(9, handle_sigint); // Obsługa sygnału SIGINT
+    signal(2, handle_sigint); // Obsługa sygnału SIGINT
 
     printf("\nNowy zawiadowca stacji PID: %d", getpid());
 

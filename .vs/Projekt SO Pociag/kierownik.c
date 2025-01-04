@@ -94,16 +94,14 @@ int main() {
 
 // Obsługa sygnału SIGINT
 void handle_sigint(int sig) {
-    sem_destroy(sem_get(".", 2, 2));
-    destroy_message_queue(get_message_queue(".", 0));
-    destroy_message_queue(get_message_queue(".", 1));
+    printf("\nKierownik: Odebrano sygnal SIGINT");
     destroy_message_queue(get_message_queue(".", getpid())); // Usunięcie kolejki kierownika
     exit(0);
 }
 
 int main() {
     setbuf(stdout, NULL);
-    signal(9, handle_sigint); // Obsługa sygnału SIGINT
+    signal(2, handle_sigint); // Obsługa sygnału SIGINT
 
     printf("\nNowy kierownik pociagu PID: %d", getpid());
 
