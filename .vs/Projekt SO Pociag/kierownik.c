@@ -108,8 +108,8 @@ int main() {
     printf("\nNowy kierownik pociagu PID: %d", getpid());
 
     // Inicjalizacja zmiennych
-    int max_passengers = 10;
-    int max_bikes = 10;
+    int max_passengers = 5;
+    int max_bikes = 2;
     int passengers = 0;
     int bikes = 0;
     int passanger_pid;
@@ -120,8 +120,8 @@ int main() {
     struct message* train_message = malloc(sizeof(struct message));
     int msq0 = get_message_queue(".", 0);
     int msq1 = get_message_queue(".", 1);
-    int train_msq = get_message_queue(".", 2);
-    int my_msq = get_message_queue(".", train_ID); // Kolejka kierownika
+    int train_msq = get_message_queue(".", 2); //Kolejka zawiadowcy
+    int my_msq = get_message_queue(".", train_ID); // Kolejka prywatna kierownika
 
     // Przygotowanie semaforów
     int entrance_sem = sem_create(".", 2, 2);
@@ -129,18 +129,19 @@ int main() {
     sem_set_value(entrance_sem, 1, 1);
 
     while (1) {
-        // Powiadomienie zawiadowcy, że pociąg jest gotowy
+        // Powiadomienie zawiadowcy, że pociąg czeka na wjazd
         train_message->ktype = train_ID;
-        train_message->mtype = 1; // Gotowość do załadunku
+        train_message->mtype = 1; // Gotowy do załadunku
         send_message(train_msq, train_message);
 
-        // Czekanie na zgodę na załadunek
+        // Czekanie na zgodę na wjazd
         receive_message(my_msq, 1, train_message);
 
         printf("\nKierownik: pociąg %d rozpoczyna załadunek.", train_ID);
 
         // Pętla ładowania pociągu
-        while (passengers < max_passengers) {
+        // Warunek ładuj dopóki nie ma maksymalnej liczby pasażerów i rowerów lub nie otrzyma komunikatu o wyjeździe
+        while (passengers < max_passengers && receive_message_no_wait(my_msq, 2, train_message)!=1) {
             if (passengers < max_passengers) {
                 if (receive_message_no_wait(msq0, 1, entrance_message)) {
                     sem_raise(entrance_sem, 0);
@@ -163,20 +164,18 @@ int main() {
         // Powiadomienie zawiadowcy, że pociąg jest pełny
         train_message->ktype = train_ID;
         train_message->mtype = 2; // Gotowość do odjazdu
-        send_message(train_msq, train_message);
+        send_message(my_msq, train_message);
+
+        // Czekanie na zgodę na wyjazd
+        receive_message(my_msq, 2, train_message);
 
         // Wyjazd pociągu
         printf("\nKierownik: pociąg %d odjeżdża.", train_ID);
-        sleep(10);
-
-        // Powiadomienie zawiadowcy, że pociąg wrócił
-        train_message->ktype = train_ID;
-        train_message->mtype = 0; // Powrót na stację
-        send_message(train_msq, train_message);
-
+        sleep(30);
         // Zerowanie liczników
         passengers = 0;
         bikes = 0;
+        printf("\nKierownik: pociąg %d wrócił.", train_ID);
     }
 
     return 0;

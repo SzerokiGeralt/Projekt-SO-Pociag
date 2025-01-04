@@ -18,9 +18,9 @@ int main() {
     int entrance_sem = sem_get(".", 2, 2);
 
 
-    printf("\nPasazer: Nowy pasazer PID: %d",id);
+    //printf("\nPasazer: Nowy pasazer PID: %d",id);
     if (has_bike) {
-        printf(" z rowerem");
+        //printf(" z rowerem");
     }
     
     int entrance;

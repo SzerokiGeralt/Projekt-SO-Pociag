@@ -1,11 +1,6 @@
-/*#include "mojeFunkcje.h"
 
-void clock(int time) {
-    sleep(time);
-    prepare_departure();
-}
 
-void prepare_departure() {
+/*void prepare_departure() {
     printf("\nPrzygotowanie do odjazdu");
 }
 
@@ -62,23 +57,25 @@ int main() {
     sem_set_value(platform_sem, 1, 1);
 
     while (1) {
-        // Oczekiwanie na pociąg gotowy do załadunku
+        // Oczekiwanie na pociąg
+        printf("\nZawiadowca: oczekiwanie na pociąg.");
         receive_message(train_msq, 1, train_message);
         int train_ID = train_message->ktype;
 
-        printf("\nZawiadowca: pociąg %d gotowy do załadunku.", train_ID);
+        printf("\nZawiadowca: pociąg %d wjezdza na peron.", train_ID);
 
         // Powiadomienie kierownika, że może rozpocząć załadunek
         train_message->mtype = 1; // Zgoda na załadunek
         send_message(get_message_queue(".", train_ID), train_message);
 
         // Oczekiwanie na informację o pełnym pociągu
-        receive_message(train_msq, 2, train_message);
-        printf("\nZawiadowca: pociąg %d jest pełny i odjeżdża.", train_ID);
+        receive_message(get_message_queue(".", train_ID), 2, train_message);
+        printf("\nZawiadowca: pociąg %d jest pełny.", train_ID);
 
-        // Oczekiwanie na powrót pociągu
-        receive_message(train_msq, 0, train_message);
-        printf("\nZawiadowca: pociąg %d wrócił na stację.", train_ID);
+        //Odjazd pociągu
+        train_message->mtype = 2;
+        send_message(get_message_queue(".", train_ID), train_message);
+        printf("\nZawiadowca: pociąg %d odjeżdża.", train_ID);
     }
 
     return 0;
