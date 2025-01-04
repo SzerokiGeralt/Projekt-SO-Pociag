@@ -7,20 +7,21 @@ void handle_sigkill () {
 
 int main() {
     // Inicjalizacja
-    srand(time(NULL));
+    srand(getpid());
     signal(2, handle_sigkill);
     setbuf(stdout, NULL);
 
     // Inicjalizacja zmiennych
     int id = getpid();
-    int has_bike = rand() % 2;
+    // 30% szans na posiadanie roweru
+    int has_bike = (rand() % 100) < 30 ? 1 : 0; 
     int platform_sem = sem_get(".", 1, 2);
     int entrance_sem = sem_get(".", 2, 2);
 
 
-    //printf("\nPasazer: Nowy pasazer PID: %d",id);
+    printf("\nPasazer: Nowy pasazer PID: %d",id);
     if (has_bike) {
-        //printf(" z rowerem");
+        printf(" z rowerem");
     }
     
     int entrance;

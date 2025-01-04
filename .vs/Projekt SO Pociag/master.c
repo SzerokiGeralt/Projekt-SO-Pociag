@@ -1,13 +1,23 @@
 #include "mojeFunkcje.h"
-#define MAX_KIEROWNIKOW 5
+#define MAX_KIEROWNIKOW 2
 
 void handle_sigint();
 pid_t zawiadowca_pid;
 pid_t kierownik_pid[MAX_KIEROWNIKOW];
 
+void handle_sigchld(int sig) {
+    int status;
+    pid_t pid;
+
+    // Pętla odbierająca wszystkie zakończone procesy potomne
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        printf("\nProces potomny %d zakończony.", pid);
+    }
+}
 int main() {
     setbuf(stdout, NULL);
     signal(2, handle_sigint);
+    signal(17, handle_sigchld);
 
     printf("Uruchomiono zaawansowana symulacje kolejowa\nstworzona przez Karol Kapusta.\nProject not sponsored by \"Koleje Malopolskie\"\n\n");
 
@@ -38,7 +48,7 @@ int main() {
             perror("Nie udalo sie uruchomic procesu pasazer");
             exit(1);
         }
-        sleep(2);
+        sleep(rand() % 10 + 1);
     }
 
     // Oczekiwanie na zakończenie procesów podrzędnych

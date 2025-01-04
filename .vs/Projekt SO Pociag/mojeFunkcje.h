@@ -14,6 +14,7 @@
 #include <sys/sem.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/wait.h>
 
 #define MAX_CONTENT 256
 
