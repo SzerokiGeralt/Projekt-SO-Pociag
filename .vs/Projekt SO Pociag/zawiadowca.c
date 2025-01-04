@@ -68,18 +68,24 @@ int main() {
         if (finished_pid == wait_time_pid) {
             printf("\nZawiadowca: pociąg stoi za długo.");
             kill(wait_loaded_pid, 9);
+
+            // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
+            wait(NULL);
+
+            //Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
+            kill(train_ID, 10);
         } else {
             printf("\nZawiadowca: pociąg %d jest pełny.", train_ID);
             kill(wait_time_pid, 9);
+
+            // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
+            wait(NULL);
+
+            //Odjazd pociągu regularny
+            train_message->mtype = 2;
+            send_message(get_message_queue(".", train_ID), train_message);
+            printf("\nZawiadowca: pociąg %d odjeżdża.", train_ID);
         }
-
-        // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
-        wait(NULL);
-
-        //Odjazd pociągu
-        train_message->mtype = 2;
-        send_message(get_message_queue(".", train_ID), train_message);
-        printf("\nZawiadowca: pociąg %d odjeżdża.", train_ID);
     }
 
     return 0;

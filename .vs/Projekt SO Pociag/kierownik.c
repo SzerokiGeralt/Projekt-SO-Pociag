@@ -1,5 +1,7 @@
 #include "mojeFunkcje.h"
 
+int skip_loading = 0;
+
 // Obsługa sygnału SIGINT
 void handle_sigint(int sig) {
     printf("\nKierownik: Odebrano sygnal SIGINT");
@@ -7,18 +9,25 @@ void handle_sigint(int sig) {
     exit(0);
 }
 
+void handle_sigusr1(int sig) {
+    printf("\nKierownik: Odebrano sygnal SIGUSR1");
+    skip_loading = 1;
+}
+
 int main() {
     setbuf(stdout, NULL);
-    signal(2, handle_sigint); // Obsługa sygnału SIGINT
+    signal(2, handle_sigint); // Przypisanie obsługi sygnału SIGINT
+    signal(10, handle_sigusr1); // Przypisanie obsługi sygnału SIGUSR1
 
     printf("\nNowy kierownik pociagu PID: %d", getpid());
 
     // Inicjalizacja zmiennych
-    int max_passengers = 5;
-    int max_bikes = 2;
+    int max_passengers = 20;
+    int max_bikes = 5;
     int passengers = 0;
     int bikes = 0;
     int passanger_pid;
+    
     int train_ID = getpid();
     pid_t* train = malloc(sizeof(int)*(max_passengers));
     for (int i = 0; i < max_passengers; i++){
@@ -50,7 +59,7 @@ int main() {
 
         // Pętla ładowania pociągu
         // Warunek ładuj dopóki nie ma maksymalnej liczby pasażerów i rowerów lub nie otrzyma komunikatu o wyjeździe
-        while (passengers < max_passengers && receive_message_no_wait(my_msq, 2, train_message)!=1) {
+        while (passengers < max_passengers && skip_loading == 0) {
             if (passengers < max_passengers) {
                 if (receive_message_no_wait(msq0, 1, entrance_message)) {
                     sem_raise(entrance_sem, 0);
@@ -75,14 +84,19 @@ int main() {
             sleep(0.5);
         }
 
-        // Powiadomienie zawiadowcy, że pociąg jest pełny
-        train_message->ktype = train_ID;
-        train_message->mtype = 2; // Gotowość do odjazdu
-        send_message(my_msq, train_message);
+        if (skip_loading == 0) {
+            // Powiadomienie zawiadowcy, że pociąg jest pełny
+            train_message->ktype = train_ID;
+            train_message->mtype = 2; // Gotowość do odjazdu
+            send_message(my_msq, train_message);
 
-        // Czekanie na zgodę na wyjazd
-        receive_message(my_msq, 2, train_message);
-
+            // Czekanie na zgodę na wyjazd
+            receive_message(my_msq, 2, train_message);
+        } else {
+            printf("\nKierownik: pominięto załadunek pociągu %d.", train_ID);
+            skip_loading = 0;
+        }
+        
         // Wyjazd pociągu
         printf("\nKierownik: pociąg %d odjeżdża.", train_ID);
         sleep(15);
