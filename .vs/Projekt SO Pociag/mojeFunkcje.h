@@ -106,6 +106,21 @@ int sem_create(char* unique_path, int project_name, int nsems) {
     return sem_ID;
 }
 
+// Tworzy semafor z klucza "unique_path" oraz "project_name" o liczbie semaforów "nsems"
+// Zwraca ID semafora lub -1 w przypadku błędu gdy takie semafory już istnieją
+int sem_create_once(char* unique_path, int project_name, int nsems) {
+    key_t sem_key = ftok(unique_path, project_name);
+    if (sem_key == -1) {
+        perror("Blad generowania klucza dla semaforow");
+        exit(1);
+    }
+    int sem_ID = semget(sem_key, nsems, 0666 | IPC_CREAT | IPC_EXCL);
+    if (sem_ID == -1) {
+        return -1;
+    }
+    return sem_ID;
+}
+
 //Pobiernie semafora z klucza "unique_path" oraz "project_name" o liczbie semaforów "nsems"
 int sem_get(char* unique_path, int project_name, int nsems) {
     key_t sem_key = ftok(unique_path, project_name);
@@ -186,6 +201,28 @@ void sem_lower_no_wait(int sem_ID, int num) {
     }
 }
 
+// Sprawdzenie czy semafor istnieje
+int sem_exists(char* unique_path, int project_name, int nsems) {
+    key_t sem_key = ftok(unique_path, project_name);
+    if (sem_key == -1) {
+        perror("Blad generowania klucza dla semaforow");
+        exit(1);
+    }
+    int sem_ID = semget(sem_key, nsems, 0666);
+    if (sem_ID == -1) {
+        if (errno == ENOENT) {
+            // Nie istnieje
+            return 0;
+        } else {
+            // Error
+            perror("Błąd semget");
+            return -1;
+        }
+    }
+    //Istnieje
+    return 1;
+}
+
 // Tworzenie pamięci współdzielonej o pojemnosci x * int
 int shared_mem_create(char* unique_path, int project_name, int x) {
     key_t mem_key = ftok(unique_path, project_name);
@@ -212,6 +249,20 @@ int shared_mem_get(char* unique_path, int project_name, int x) {
     if (mem_ID == -1) {
         perror("Blad dostepu pamieci wspoldzielonej");
         exit(1);
+    }
+    return mem_ID;
+}
+
+// Uzyskiwanie dostępu do pamięci współdzielonej o pojemnosci x * int zwraca ID lub -1 w przypadku błędu
+int shared_mem_get_return(char* unique_path, int project_name, int x) {
+    key_t mem_key = ftok(unique_path, project_name);
+    if (mem_key == -1) {
+        return -1;
+    }
+    int mem_ID = shmget(mem_key, x * sizeof(int), 0666);
+    if (mem_ID == -1) {
+        perror("Blad dostepu pamieci wspoldzielonej");
+        return -1;
     }
     return mem_ID;
 }

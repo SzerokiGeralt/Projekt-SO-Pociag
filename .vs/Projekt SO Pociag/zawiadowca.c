@@ -54,21 +54,32 @@ int main() {
 
     printf("\nNowy zawiadowca stacji PID: %d", getpid());
 
-    // Przygotowanie kolejek wiadomości
-    int arriving_train_msq = get_message_queue(".", 2); // Kolejka zawiadowcy
-    int waiting_train_msq = get_message_queue(".", 3); // Kolejka kierownika
-    struct message* train_message = malloc(sizeof(struct message));
     // Przygotowanie semaforów
-    int platform_sem = sem_create(".", 1, 2);
+    int platform_sem = sem_create_once(".", 1, 2);
+    if (platform_sem == -1) {
+        printf("\nInny zawiadowca już istnieje");
+        exit(1);
+    }
     sem_set_value(platform_sem, 0, 0);
     sem_set_value(platform_sem, 1, 0);
-    int entrance_sem = sem_create(".", 2, 2);
+    int entrance_sem = sem_create_once(".", 2, 2);
+    if (entrance_sem == -1) {
+        printf("\nInny zawiadowca już istnieje");
+        exit(1);
+    }
     sem_set_value(entrance_sem, 0, 0);
     sem_set_value(entrance_sem, 1, 0);
     pid_t wait_time_pid;
     pid_t wait_loaded_pid;
     pid_t finished_pid;
     int max_waittime = 30;
+
+    // Przygotowanie kolejek wiadomości
+    int arriving_train_msq = get_message_queue(".", 2); // Kolejka zawiadowcy
+    int waiting_train_msq = get_message_queue(".", 3); // Kolejka kierownika
+    struct message* train_message = malloc(sizeof(struct message));
+
+
 
     while (1) {
         // Oczekiwanie na pociąg
