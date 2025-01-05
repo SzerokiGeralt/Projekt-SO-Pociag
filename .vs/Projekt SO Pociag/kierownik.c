@@ -15,14 +15,14 @@ void handle_sigusr1(int sig) {
 
 int main() {
     setbuf(stdout, NULL);
-    signal(2, handle_sigint); // Przypisanie obsługi sygnału SIGINT
-    signal(10, handle_sigusr1); // Przypisanie obsługi sygnału SIGUSR1
+    signal(SIGINT, handle_sigint); // Przypisanie obsługi sygnału SIGINT
+    signal(SIGUSR1, handle_sigusr1); // Przypisanie obsługi sygnału SIGUSR1
 
     printf("\nNowy kierownik pociagu PID: %d", getpid());
 
     // Inicjalizacja zmiennych
-    int max_passengers = 10;
-    int max_bikes = 3;
+    int max_passengers = 50;
+    int max_bikes = 20;
     int passengers = 0;
     int bikes = 0;
     int passanger_pid;
@@ -110,7 +110,7 @@ int main() {
         bikes = 0;
         for (int i = 0; i < max_passengers; i++){
             if (train[i] > 0 && train[i] != getpid()) {
-                kill(train[i], 2);
+                kill(train[i], SIGINT);
             }
             train[i] = 0;
         }

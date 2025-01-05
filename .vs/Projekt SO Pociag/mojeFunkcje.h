@@ -15,6 +15,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #define MAX_CONTENT 256
 
@@ -132,11 +133,36 @@ void sem_set_value(int sem_ID, int num, int value) {
 // Operacja P (czekanie na semafor)
 void sem_wait(int sem_ID, int num) {
     struct sembuf sops = {num, -1, 0};
-    if (semop(sem_ID, &sops, 1) == -1) {
-        printf("Blad wait %d %d\n", sem_ID, num);
-        perror("Blad wait");
-        exit(1);
+    while(1) {
+        if (semop(sem_ID, &sops, 1) == -1) {
+            if (errno == EINTR) {
+                // Przerwane przez sygnał – ponawiamy
+                continue;
+            }
+            printf("Blad wait %d %d\n", sem_ID, num);
+            perror("Blad wait");
+            exit(1);
+        }
+        break;
     }
+}
+
+// Operacja P (czekanie na semafor) z możliwością przerwania przez sygnał
+// Zwraca 0 jeśli przerwane, 1 jeśli wykonane
+int sem_wait_interruptible(int sem_ID, int num) {
+    struct sembuf sops = {num, -1, 0};
+    while(1) {
+        if (semop(sem_ID, &sops, 1) == -1) {
+            if (errno == EINTR) {
+                return 0;
+            }
+            printf("Blad wait %d %d\n", sem_ID, num);
+            perror("Blad wait");
+            exit(1);
+        }
+        break;
+    }
+    return 1;
 }
 
 

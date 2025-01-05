@@ -23,28 +23,34 @@ int force_passanger_exit_queue() {
     long temp_pid = 0;
     // Wysłanie sygnału do czekajacych pasażerów o opuszczeniu kolejki
     if (receive_message_no_wait(get_message_queue(".", 0), 1, entrance_message)) {
+        printf("\nZawiadowca: wyktyto pasażer %ld u progu proszenie o wyjście.", entrance_message->ktype);
         temp_pid = entrance_message->ktype;
-        kill(temp_pid, 12);
-        sem_raise(sem_get(".", 2, 2), 0);
+        kill(temp_pid, SIGUSR2);
     }
     if (receive_message_no_wait(get_message_queue(".", 1), 1, entrance_message)) {
-        if (temp_pid != 0) {
-            kill(entrance_message->ktype, 12);
-            sem_raise(sem_get(".", 2, 2), 1);
-        }
+        printf("\nZawiadowca: wyktyto pasażer %ld u progu proszenie o wyjście.", entrance_message->ktype);
+        temp_pid = entrance_message->ktype;
+        kill(temp_pid, SIGUSR2);
     }
 
     free(entrance_message);
 }
 
 void open_gates() {
-    sem_raise(sem_get(".", 1, 2), 0);
-    sem_raise(sem_get(".", 1, 2), 1);
+    sem_set_value(sem_get(".", 1, 2), 0, 1);
+    sem_set_value(sem_get(".", 1, 2), 1, 1);
+    printf("\nZawiadowca: otwieram bramki.");
+}
+
+void close_gates() {
+    sem_set_value(sem_get(".", 1, 2), 0, 0);
+    sem_set_value(sem_get(".", 1, 2), 1, 0);
+    printf("\nZawiadowca: zamykam bramki.");
 }
 
 int main() {
     setbuf(stdout, NULL);
-    signal(2, handle_sigint); // Obsługa sygnału SIGINT
+    signal(SIGINT, handle_sigint); // Obsługa sygnału SIGINT
 
     printf("\nNowy zawiadowca stacji PID: %d", getpid());
 
@@ -95,25 +101,27 @@ int main() {
         finished_pid = wait(&status);
         if (finished_pid == wait_time_pid) {
             printf("\nZawiadowca: pociąg stoi za długo.");
-            kill(wait_loaded_pid, 9);
+            kill(wait_loaded_pid, SIGKILL);
 
             // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
             wait(NULL);
 
             // Nie pozwalamy pasażerom na wsiadanie
+            close_gates();
             force_passanger_exit_queue();
 
             // Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
             // Zezwalamy na odjazd pociągu
-            kill(train_ID, 10);
+            kill(train_ID, SIGUSR1);
         } else {
             printf("\nZawiadowca: pociąg %d jest pełny.", train_ID);
-            kill(wait_time_pid, 9);
+            kill(wait_time_pid, SIGKILL);
 
             // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
             wait(NULL);
 
             // Nie pozwalamy pasażerom na wsiadanie
+            close_gates();
             force_passanger_exit_queue();
 
             // Pociąg jest pełny

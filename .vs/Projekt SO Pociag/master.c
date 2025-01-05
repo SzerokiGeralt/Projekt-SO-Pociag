@@ -16,8 +16,8 @@ void handle_sigchld(int sig) {
 }
 int main() {
     setbuf(stdout, NULL);
-    signal(2, handle_sigint);
-    signal(17, handle_sigchld);
+    signal(SIGINT, handle_sigint);
+    signal(SIGCHLD, handle_sigchld);
 
     printf("Uruchomiono zaawansowana symulacje kolejowa\nstworzona przez Karol Kapusta.\nProject not sponsored by \"Koleje Malopolskie\"\n\n");
 
@@ -43,13 +43,13 @@ int main() {
 
     // Uruchomienie procesów pasażerów
     // W sumie 100 pasażerów
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 300; i++) {
         if (fork() == 0) {
             execl("./pasazer", "pasazer", NULL);
             perror("Nie udalo sie uruchomic procesu pasazer");
             exit(1);
         }
-        sleep(rand() % 2 + 1);
+        sleep(rand() % 2);
     }
 
     // Oczekiwanie na zakończenie procesów podrzędnych

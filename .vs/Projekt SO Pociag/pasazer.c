@@ -1,24 +1,22 @@
 #include "mojeFunkcje.h"
 
-int reset = 0;
 int has_bike;
 
-void handle_sigkill() {
+void handle_sigint() {
     printf("\nPasazer %d dotarl do destynacji", getpid());
     exit(0);
 }
 
 void handle_sigusr2() {
     printf("\nPasazer %d otrzymal sygnal SIGUSR2", getpid());
-    reset = 1;
 }
 
 int main() {
     // Inicjalizacja
     srand(getpid());
     int has_bike = (rand() % 100) < 30 ? 1 : 0;  // 30% szans na posiadanie roweru
-    signal(2, handle_sigkill);
-    signal(12, handle_sigusr2);
+    signal(SIGINT, handle_sigint);
+    signal(SIGUSR2, handle_sigusr2);
     setbuf(stdout, NULL);
 
     // Inicjalizacja zmiennych
@@ -49,9 +47,7 @@ int main() {
         send_message(entrance, entrance_message);
 
         printf("\nPasazer: Pasazer %d z rowerem czeka u progu", id);
-        sem_wait(entrance_sem, 1);
-        if (reset) {
-            reset = 0;
+        if (sem_wait_interruptible(entrance_sem, 1)==0) {
             printf("\nPasazer %d wraca na peron", id);
             goto reset_label;
         }
@@ -65,9 +61,7 @@ int main() {
         send_message(entrance, entrance_message);
 
         printf("\nPasazer: Pasazer %d czeka u progu", id);
-        sem_wait(entrance_sem, 0);
-        if (reset) {
-            reset = 0;
+        if (sem_wait_interruptible(entrance_sem, 0)==0) {
             printf("\nPasazer %d wraca na peron", id);
             goto reset_label;
         }
@@ -79,9 +73,13 @@ int main() {
 
     //czeka na dotarcie do celu
 
-    while (1) {
-        sleep(1);
+    sleep(60);
+    while (1)
+    {
+        printf("\nPasazer: Pasazer %d zgubił się", id);
+        sleep(0.5);
     }
+    
     
     return 0;
 }
