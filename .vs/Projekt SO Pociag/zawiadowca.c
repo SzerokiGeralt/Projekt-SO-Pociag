@@ -2,6 +2,13 @@
 
 void handle_sigint(int sig) {
     printf("\nZawiadowca: Odebrano sygnal SIGINT");
+    // Usuwanie wszystkich zasobów
+    destroy_message_queue(get_message_queue(".", 0));
+    destroy_message_queue(get_message_queue(".", 1));
+    destroy_message_queue(get_message_queue(".", 2));
+    destroy_message_queue(get_message_queue(".", 3));
+    sem_destroy(sem_get(".", 1, 2));
+    sem_destroy(sem_get(".", 2, 2));
     exit(0);
 }
 

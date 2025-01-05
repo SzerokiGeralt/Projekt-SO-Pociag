@@ -62,15 +62,5 @@ int main() {
 // Obsługa sygnału SIGINT
 void handle_sigint(int sig) {
     printf("\nMaster: Odebrano sygnal SIGINT");
-
-    // Usuwanie zasobów IPC
-    destroy_message_queue(get_message_queue(".", 0));
-    destroy_message_queue(get_message_queue(".", 1));
-    destroy_message_queue(get_message_queue(".", 2));
-    destroy_message_queue(get_message_queue(".", 3));
-
-    sem_destroy(sem_get(".", 1, 2));
-    sem_destroy(sem_get(".", 2, 2));
-
     exit(0);
 }
