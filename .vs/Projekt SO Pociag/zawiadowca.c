@@ -9,6 +9,8 @@ void handle_sigint(int sig) {
     destroy_message_queue(get_message_queue(".", 3));
     sem_destroy(sem_get(".", 1, 2));
     sem_destroy(sem_get(".", 2, 2));
+    sem_destroy(sem_get(".", 3, 1));
+    shared_mem_destroy(shared_mem_get(".", 1));
     exit(0);
 }
 
@@ -55,13 +57,16 @@ void close_gates() {
     printf("\nZawiadowca: zamykam bramki.");
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    int max_waittime = 30;
+    int max_trains = 3;
+
     setbuf(stdout, NULL);
-    signal(SIGINT, handle_sigint); // Obsługa sygnału SIGINT
+    signal(SIGINT, handle_sigint);
 
     printf("\nNowy zawiadowca stacji PID: %d", getpid());
 
-    // Przygotowanie semaforów
+    // Semafor do otwierania i zamykania bramek na peronie
     int platform_sem = sem_create_once(".", 1, 2);
     if (platform_sem == -1) {
         printf("\nInny zawiadowca już istnieje");
@@ -69,6 +74,8 @@ int main() {
     }
     sem_set_value(platform_sem, 0, 0);
     sem_set_value(platform_sem, 1, 0);
+
+    // Semafor do otwierania i zamykania wejść do pociagu
     int entrance_sem = sem_create_once(".", 2, 2);
     if (entrance_sem == -1) {
         printf("\nInny zawiadowca już istnieje");
@@ -76,10 +83,24 @@ int main() {
     }
     sem_set_value(entrance_sem, 0, 0);
     sem_set_value(entrance_sem, 1, 0);
+
+    // Semafor do rejestracji pociągów
+    int register_sem = sem_create(".", 3, 1);
+
+    // Przygotowanie pamięci współdzielonej dla rejestracji pociągów
+    //sem_set_value(register_sem, 0, 0);
+    int register_shm = shared_mem_create(".", 1, max_trains);
+    char* register_shm_pointer = shared_mem_attach(register_shm);
+    for (int i = 0; i < max_trains; i++) {
+        // Zapewniamy puste miejsca w rejestrze
+        register_shm_pointer[i] = 0;
+    }
+    // Zezwolenie na rejestrację pociągów
+    sem_raise(register_sem, 0);
+    
     pid_t wait_time_pid;
     pid_t wait_loaded_pid;
     pid_t finished_pid;
-    int max_waittime = 30;
 
     // Przygotowanie kolejek wiadomości
     int arriving_train_msq = get_message_queue(".", 2); // Kolejka zawiadowcy
@@ -147,6 +168,20 @@ int main() {
             train_message->mtype = 2;
             send_message(waiting_train_msq, train_message);
             printf("\nZawiadowca: pociąg %d odjeżdża.", train_ID);
+        }
+
+        // Sprawdzenie czy są jeszcze jakieś pociągi w rejestrze
+        int all_trains_empty = 1;
+        for (int i = 0; i < max_trains; i++) {
+            if (register_shm_pointer[i] != 0) {
+                all_trains_empty = 0;
+                break;
+            }
+        }
+
+        if (all_trains_empty) {
+            printf("\nZawiadowca: brak pociągów w rejestrze, kończę pracę.");
+            raise(SIGINT);
         }
     }
 

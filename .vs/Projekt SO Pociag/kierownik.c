@@ -5,6 +5,20 @@ int skip_loading = 0;
 // Obsługa sygnału SIGINT
 void handle_sigint(int sig) {
     printf("\nKierownik: Odebrano sygnal SIGINT");
+    int register_shm = shared_mem_get_return(".", 1);
+    if (register_shm == -1) {
+        exit(0);
+    }
+    char* register_shm_pointer = shared_mem_attach(register_shm);
+    int max_trains = shared_mem_size(register_shm);
+    // Sprawdzenie rejestru pociągów i usunięcie PID pociągu
+    for (int i = 0; i < max_trains; i++) {
+        if (register_shm_pointer[i] == getpid()) {
+            register_shm_pointer[i] = 0;
+            printf("\nKierownik: Usuwam pociąg %d z rejestru.", getpid());
+            break;
+        }
+    }
     exit(0);
 }
 
@@ -15,10 +29,41 @@ void handle_sigusr1(int sig) {
 
 int main() {
     setbuf(stdout, NULL);
-    signal(SIGINT, handle_sigint); // Przypisanie obsługi sygnału SIGINT
-    signal(SIGUSR1, handle_sigusr1); // Przypisanie obsługi sygnału SIGUSR1
+    signal(SIGINT, handle_sigint);
+    signal(SIGUSR1, handle_sigusr1);
 
-    printf("\nNowy kierownik pociagu PID: %d", getpid());
+    int train_ID = getpid();
+    printf("\nNowy kierownik pociagu PID: %d", train_ID);
+
+    
+    int register_sem = sem_get_return(".", 3, 1);
+    if (register_sem == -1) {
+        printf("\nKierownik: Brak zawiadowcy. Kończę proces.");
+        raise(SIGINT);
+    }
+    // Oczekiwanie na dostepnosc rejestru zawiadowcy
+    sem_wait(register_sem, 0);
+    // Sprawdzenie rejestru pociągów
+    int register_shm = shared_mem_get(".", 1);
+    char* register_shm_pointer = shared_mem_attach(register_shm);
+    int train_registered = 0;
+    int max_trains = shared_mem_size(register_shm);
+    
+    for (int i = 0; i < max_trains; i++) {
+        if (register_shm_pointer[i] == 0) {
+            register_shm_pointer[i] = train_ID;
+            train_registered = 1;
+            break;
+        }
+    }
+
+    sem_raise(register_sem, 0);
+
+    if (!train_registered) {
+        printf("\nKierownik: Maksymalna liczba pociągów osiągnięta. Kończę proces.");
+        raise(SIGINT);
+    }
+    
 
     // Inicjalizacja zmiennych
     int max_passengers = 50;
@@ -27,7 +72,6 @@ int main() {
     int bikes = 0;
     int passanger_pid;
     
-    int train_ID = getpid();
     pid_t* train = malloc(sizeof(int)*(max_passengers));
     for (int i = 0; i < max_passengers; i++){
         train[i] = 0;

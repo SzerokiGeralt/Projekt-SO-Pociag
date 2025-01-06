@@ -136,6 +136,20 @@ int sem_get(char* unique_path, int project_name, int nsems) {
     return sem_ID;
 }
 
+// Pobieranie semafora z klucza "unique_path" oraz "project_name" o liczbie semaforów "nsems"
+// Zwraca ID semafora lub -1 w przypadku błędu gdy taki semafor nie istnieje
+int sem_get_return(char* unique_path, int project_name, int nsems) {
+    key_t sem_key = ftok(unique_path, project_name);
+    if (sem_key == -1) {
+        return -1;
+    }
+    int sem_ID = semget(sem_key, nsems, 0666);
+    if (sem_ID == -1) {
+        return -1;
+    }
+    return sem_ID;
+}
+
 // Ustawianie "force" wartosci semafora
 void sem_set_value(int sem_ID, int num, int value) {
     if (semctl(sem_ID, num, SETVAL, value) == -1) {
@@ -238,14 +252,14 @@ int shared_mem_create(char* unique_path, int project_name, int x) {
     return mem_ID;
 }
 
-// Uzyskiwanie dostępu do pamięci współdzielonej o pojemnosci x * int
-int shared_mem_get(char* unique_path, int project_name, int x) {
+// Uzyskiwanie dostępu do pamięci współdzielonej
+int shared_mem_get(char* unique_path, int project_name) {
     key_t mem_key = ftok(unique_path, project_name);
     if (mem_key == -1) {
         perror("Blad generowania klucza do pamieci dzielonej");
         exit(1);
     }
-    int mem_ID = shmget(mem_key, x * sizeof(int), 0666);
+    int mem_ID = shmget(mem_key, 0, 0666);
     if (mem_ID == -1) {
         perror("Blad dostepu pamieci wspoldzielonej");
         exit(1);
@@ -253,15 +267,24 @@ int shared_mem_get(char* unique_path, int project_name, int x) {
     return mem_ID;
 }
 
-// Uzyskiwanie dostępu do pamięci współdzielonej o pojemnosci x * int zwraca ID lub -1 w przypadku błędu
-int shared_mem_get_return(char* unique_path, int project_name, int x) {
+// Zwraca liczbę intów w danej pamięci współdzielonej
+int shared_mem_size(int mem_ID) {
+    struct shmid_ds buf;
+    if (shmctl(mem_ID, IPC_STAT, &buf) == -1) {
+        perror("Blad uzyskiwania informacji o pamieci wspoldzielonej");
+        exit(1);
+    }
+    return buf.shm_segsz / sizeof(int);
+}
+
+// Uzyskiwanie dostępu do pamięci współdzielonej zwraca ID lub -1 w przypadku błędu
+int shared_mem_get_return(char* unique_path, int project_name) {
     key_t mem_key = ftok(unique_path, project_name);
     if (mem_key == -1) {
         return -1;
     }
-    int mem_ID = shmget(mem_key, x * sizeof(int), 0666);
+    int mem_ID = shmget(mem_key, 0, 0666);
     if (mem_ID == -1) {
-        perror("Blad dostepu pamieci wspoldzielonej");
         return -1;
     }
     return mem_ID;
@@ -275,6 +298,22 @@ char* shared_mem_attach(int mem_ID) {
         exit(1);
     }
     return shared_mem;
+}
+
+// Odłączanie od pamięci współdzielonej
+void shared_mem_detach(char *shared_mem) {
+    if (shmdt(shared_mem) == -1) {
+        perror("Blad odlaczania pamieci wspoldzielonej");
+        exit(1);
+    }
+}
+
+// Usuwanie pamięci współdzielonej
+void shared_mem_destroy(int mem_ID) {
+    if (shmctl(mem_ID, IPC_RMID, NULL) == -1) {
+        perror("Blad usuwania pamieci wspoldzielonej");
+        exit(1);
+    }
 }
 
 // Usuwanie semaforów
