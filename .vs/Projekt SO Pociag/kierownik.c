@@ -5,12 +5,18 @@ int skip_loading = 0;
 // Obsługa sygnału SIGINT
 void handle_sigint(int sig) {
     printf("\nKierownik: Odebrano sygnal SIGINT");
-    int register_shm = shared_mem_get_return(".", 1);
-    if (register_shm == -1) {
+    int register_sem = sem_get_return(".", 3, 1);
+    if (register_sem == -1) {
         exit(0);
     }
-    char* register_shm_pointer = shared_mem_attach(register_shm);
-    int max_trains = shared_mem_size(register_shm);
+    sem_wait(register_sem, 0);
+    int register_shm = shared_mem_get_return(".", 1);
+    if (register_shm == -1) {
+        sem_raise(register_sem, 0);
+        exit(0);
+    }
+    int* register_shm_pointer = shared_mem_attach_int(register_shm);
+    int max_trains = shared_mem_size(register_shm)/ sizeof(int);
     // Sprawdzenie rejestru pociągów i usunięcie PID pociągu
     for (int i = 0; i < max_trains; i++) {
         if (register_shm_pointer[i] == getpid()) {
@@ -19,6 +25,7 @@ void handle_sigint(int sig) {
             break;
         }
     }
+    sem_raise(register_sem, 0);
     exit(0);
 }
 
@@ -36,23 +43,24 @@ int main() {
     printf("\nNowy kierownik pociagu PID: %d", train_ID);
 
     
-    int register_sem = sem_get_return(".", 3, 1);
-    if (register_sem == -1) {
-        printf("\nKierownik: Brak zawiadowcy. Kończę proces.");
-        raise(SIGINT);
+    int register_sem;
+    while ((register_sem = sem_get_return(".", 3, 1)) == -1) {
+        printf("\nKierownik: Brak zawiadowcy. Czekam %d ...", train_ID);
+        sleep(1);
     }
     // Oczekiwanie na dostepnosc rejestru zawiadowcy
     sem_wait(register_sem, 0);
     // Sprawdzenie rejestru pociągów
     int register_shm = shared_mem_get(".", 1);
-    char* register_shm_pointer = shared_mem_attach(register_shm);
+    int* register_shm_pointer = shared_mem_attach_int(register_shm);
     int train_registered = 0;
-    int max_trains = shared_mem_size(register_shm);
+    int max_trains = shared_mem_size(register_shm)/ sizeof(int);
     
     for (int i = 0; i < max_trains; i++) {
         if (register_shm_pointer[i] == 0) {
             register_shm_pointer[i] = train_ID;
             train_registered = 1;
+            printf("\nKierownik: Zarejestrowano pociąg %d.", train_ID);
             break;
         }
     }

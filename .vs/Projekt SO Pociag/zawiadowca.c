@@ -89,8 +89,8 @@ int main(int argc, char *argv[]) {
 
     // Przygotowanie pamięci współdzielonej dla rejestracji pociągów
     //sem_set_value(register_sem, 0, 0);
-    int register_shm = shared_mem_create(".", 1, max_trains);
-    char* register_shm_pointer = shared_mem_attach(register_shm);
+    int register_shm = shared_mem_create(".", 1, max_trains*sizeof(int));
+    int* register_shm_pointer = shared_mem_attach_int(register_shm);
     for (int i = 0; i < max_trains; i++) {
         // Zapewniamy puste miejsca w rejestrze
         register_shm_pointer[i] = 0;
@@ -107,15 +107,10 @@ int main(int argc, char *argv[]) {
     int waiting_train_msq = get_message_queue(".", 3); // Kolejka kierownika
     struct message* train_message = malloc(sizeof(struct message));
 
-
+    receive_message(arriving_train_msq, 1, train_message);
+    int train_ID = train_message->ktype;
 
     while (1) {
-        // Oczekiwanie na pociąg
-        printf("\nZawiadowca: oczekiwanie na pociąg.");
-        receive_message(arriving_train_msq, 1, train_message);
-        int train_ID = train_message->ktype;
-
-        printf("\nZawiadowca: pociąg %d wjezdza na peron.", train_ID);
 
         // Powiadomienie kierownika, że może rozpocząć załadunek
         train_message->mtype = 1; // Zgoda na załadunek
@@ -169,20 +164,35 @@ int main(int argc, char *argv[]) {
             send_message(waiting_train_msq, train_message);
             printf("\nZawiadowca: pociąg %d odjeżdża.", train_ID);
         }
-
+        
+        // Oczekiwanie na pociąg
+        printf("\nZawiadowca: oczekiwanie na pociąg.");
+        while (receive_message_no_wait(arriving_train_msq, 1, train_message) == 0)
+        {
         // Sprawdzenie czy są jeszcze jakieś pociągi w rejestrze
-        int all_trains_empty = 1;
+        int all_trains_empty = 0;
+        sem_wait(register_sem, 0);
+        all_trains_empty = 1;
         for (int i = 0; i < max_trains; i++) {
             if (register_shm_pointer[i] != 0) {
-                all_trains_empty = 0;
-                break;
+            printf("\nZawiadowca: pociąg %d w rejestrze.", register_shm_pointer[i]);
+            all_trains_empty = 0;
+            break;
             }
         }
-
+        sem_raise(register_sem, 0);
         if (all_trains_empty) {
             printf("\nZawiadowca: brak pociągów w rejestrze, kończę pracę.");
             raise(SIGINT);
         }
+            sleep(1);
+            printf("\nZawiadowca: oczekiwanie na pociąg.");
+        }
+        train_ID = train_message->ktype;
+
+        printf("\nZawiadowca: pociag %d otrzymuje zezwolenie na wjazd.", train_ID);
+
+
     }
 
     return 0;

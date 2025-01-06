@@ -237,14 +237,14 @@ int sem_exists(char* unique_path, int project_name, int nsems) {
     return 1;
 }
 
-// Tworzenie pamięci współdzielonej o pojemnosci x * int
-int shared_mem_create(char* unique_path, int project_name, int x) {
+// Tworzenie pamięci współdzielonej o pojemnosci size
+int shared_mem_create(char* unique_path, int project_name, size_t size) {
     key_t mem_key = ftok(unique_path, project_name);
     if (mem_key == -1) {
         perror("Blad generowania klucza do pamieci dzielonej");
         exit(1);
     }
-    int mem_ID = shmget(mem_key, x * sizeof(int), 0666 | IPC_CREAT);
+    int mem_ID = shmget(mem_key, size, 0666 | IPC_CREAT);
     if (mem_ID == -1) {
         perror("Blad tworzenia pamieci wspoldzielonej");
         exit(1);
@@ -267,14 +267,14 @@ int shared_mem_get(char* unique_path, int project_name) {
     return mem_ID;
 }
 
-// Zwraca liczbę intów w danej pamięci współdzielonej
+// Zwraca liczbę bajtów w danej pamięci współdzielonej
 int shared_mem_size(int mem_ID) {
     struct shmid_ds buf;
     if (shmctl(mem_ID, IPC_STAT, &buf) == -1) {
         perror("Blad uzyskiwania informacji o pamieci wspoldzielonej");
         exit(1);
     }
-    return buf.shm_segsz / sizeof(int);
+    return buf.shm_segsz;
 }
 
 // Uzyskiwanie dostępu do pamięci współdzielonej zwraca ID lub -1 w przypadku błędu
@@ -290,8 +290,8 @@ int shared_mem_get_return(char* unique_path, int project_name) {
     return mem_ID;
 }
 
-// Dołączanie do pamięci współdzielonej
-char* shared_mem_attach(int mem_ID) {
+// Dołączanie do pamięci współdzielonej jak tablica znaków
+char* shared_mem_attach_char(int mem_ID) {
     char *shared_mem = (char *)shmat(mem_ID, NULL, 0);
     if (shared_mem == (char *)-1) {
         perror("Blad dolaczania pamieci wspoldzielonej");
@@ -299,6 +299,17 @@ char* shared_mem_attach(int mem_ID) {
     }
     return shared_mem;
 }
+
+// Dołączanie do pamięci współdzielonej jak tablica intów
+int* shared_mem_attach_int(int mem_ID) {
+    int *shared_mem = (int *)shmat(mem_ID, NULL, 0);
+    if (shared_mem == (int *)-1) {
+        perror("Blad dolaczania pamieci wspoldzielonej");
+        exit(1);
+    }
+    return shared_mem;
+}
+
 
 // Odłączanie od pamięci współdzielonej
 void shared_mem_detach(char *shared_mem) {

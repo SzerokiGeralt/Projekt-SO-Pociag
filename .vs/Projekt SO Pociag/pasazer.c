@@ -1,6 +1,5 @@
 #include "mojeFunkcje.h"
 
-int has_bike;
 
 void handle_sigint() {
     printf("\nPasazer %d dotarl do destynacji", getpid());
@@ -76,8 +75,8 @@ int main() {
     sleep(60);
     while (1)
     {
-        printf("\nPasazer: Pasazer %d zgubił się", id);
-        sleep(0.5);
+        printf("\nPasazer: Pasazer %d czeka opóźniony", id);
+        sleep(1);
     }
     
     
