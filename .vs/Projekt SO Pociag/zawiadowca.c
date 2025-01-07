@@ -26,23 +26,35 @@ int wait_loaded(long train_ID, struct message* train_message, int msq_ID) {
     return 0;
 }
 
-int force_passanger_exit_queue() {
-    printf("\nZawiadowca: Prosze odsunac sie od krawedzi peronu.");
+void force_passanger_exit_queue(int platform_sem) {
+    int returned = 0;
+    //printf("\nZawiadowca: Prosze odsunac sie od krawedzi peronu.");
     struct message* entrance_message = malloc(sizeof(struct message));
     long temp_pid = 0;
     // Wysłanie sygnału do czekajacych pasażerów o opuszczeniu kolejki
     if (receive_message_no_wait(get_message_queue(".", 0), 1, entrance_message)) {
-        printf("\nZawiadowca: wyktyto pasażer %ld u progu proszenie o wyjście.", entrance_message->ktype);
+        printf("\nZawiadowca: wykryto pasażera %ld u progu proszenie o wyjście.", entrance_message->ktype);
         temp_pid = entrance_message->ktype;
         kill(temp_pid, SIGUSR2);
+        while (sem_waiters(platform_sem, 0) == 0)
+        {
+            printf("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
+            sleep(INTERVAL_TIME*TIME_SCALE);
+        }
+        
     }
     if (receive_message_no_wait(get_message_queue(".", 1), 1, entrance_message)) {
-        printf("\nZawiadowca: wyktyto pasażer %ld u progu proszenie o wyjście.", entrance_message->ktype);
+        printf("\nZawiadowca: wykryto pasażera %ld u progu proszenie o wyjście.", entrance_message->ktype);
         temp_pid = entrance_message->ktype;
         kill(temp_pid, SIGUSR2);
+        while (sem_waiters(platform_sem, 1) == 0)
+        {
+            printf("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
+            sleep(INTERVAL_TIME*TIME_SCALE);
+        }        
     }
-
     free(entrance_message);
+    return;
 }
 
 void open_gates() {
@@ -138,8 +150,14 @@ int main(int argc, char *argv[]) {
             wait(NULL);
 
             // Nie pozwalamy pasażerom na wsiadanie
+            kill(train_ID, SIGUSR2);
             close_gates();
-            force_passanger_exit_queue();
+
+            // Czekamy aż wszyscy pasażerowie zejdą z wejścia
+            while (sem_waiters(entrance_sem, 0) != 0 || sem_waiters(entrance_sem, 1) != 0)
+            {
+                force_passanger_exit_queue(platform_sem);
+            }
 
             // Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
             // Zezwalamy na odjazd pociągu
@@ -152,8 +170,16 @@ int main(int argc, char *argv[]) {
             wait(NULL);
 
             // Nie pozwalamy pasażerom na wsiadanie
+            kill(train_ID, SIGUSR2);
             close_gates();
-            force_passanger_exit_queue();
+
+            // Czekamy aż wszyscy pasażerowie zejdą z wejścia
+            while (sem_waiters(entrance_sem, 0) != 0 || sem_waiters(entrance_sem, 1) != 0)
+            {
+                force_passanger_exit_queue(platform_sem);
+            }
+            
+            
 
             // Pociąg jest pełny
             // Zezwalamy na odjazd pociągu

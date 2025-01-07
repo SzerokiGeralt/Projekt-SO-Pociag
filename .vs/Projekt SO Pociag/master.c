@@ -18,11 +18,14 @@ int main() {
 
     printf("Uruchomiono zaawansowana symulacje kolejowa\nstworzona przez Karol Kapusta.\nProject not sponsored by \"Koleje Malopolskie\"\n\n");
 
-    // Uruchomienie procesu zawiadowcy stacji
-    if ((zawiadowca_pid = fork()) == 0) {
-        execl("./zawiadowca", "zawiadowca", NULL);
-        perror("Nie udalo sie uruchomic procesu zawiadowca");
-        exit(1);
+    // Uruchomienie procesów pasażerów
+    for (int i = 0; i < 300; i++) {
+        if (fork() == 0) {
+            execl("./pasazer", "pasazer", NULL);
+            perror("Nie udalo sie uruchomic procesu pasazer");
+            exit(1);
+        }
+        //usleep(rand() % PASSANGER_SPAWNRATE * TIME_SCALE);
     }
 
     // Uruchomienie procesów kierownika pociągu
@@ -34,15 +37,15 @@ int main() {
         }
     }
 
-    // Uruchomienie procesów pasażerów
-    for (int i = 0; i < 100; i++) {
-        if (fork() == 0) {
-            execl("./pasazer", "pasazer", NULL);
-            perror("Nie udalo sie uruchomic procesu pasazer");
-            exit(1);
-        }
-        usleep(rand() % PASSANGER_SPAWNRATE * TIME_SCALE);
+    // Uruchomienie procesu zawiadowcy stacji
+    if ((zawiadowca_pid = fork()) == 0) {
+        execl("./zawiadowca", "zawiadowca", NULL);
+        perror("Nie udalo sie uruchomic procesu zawiadowca");
+        exit(1);
     }
+
+
+
 
     // Oczekiwanie na zakończenie procesów podrzędnych
     while (wait(NULL) > 0);

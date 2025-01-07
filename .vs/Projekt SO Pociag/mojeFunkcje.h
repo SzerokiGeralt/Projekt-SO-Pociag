@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/sem.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <errno.h>
@@ -14,16 +15,21 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+
 
 // Stałe używane do kontrolowania projektu
 // Prawa dostepu do elementów IPC
 #define ACCESS_RIGHTS 0600
 // Skala czasu symulacji
-#define TIME_SCALE 0
+#define TIME_SCALE 1
 // Czas podróży pociągu
-#define TRAVEL_TIME 2
+#define TRAVEL_TIME 1
 // Maksymalny czas oczekiwania na załadunek
-#define MAX_WAITTIME 5
+#define MAX_WAITTIME 1
 // Maksymalna liczba pociągów
 #define MAX_TRAINS 3
 // Maksymalna liczba pasażerów
@@ -31,7 +37,7 @@
 // Maksymalna liczba rowerów
 #define MAX_BIKES 5
 // Częstotliwość generowania pasażerów (używane w master.c)
-#define PASSANGER_SPAWNRATE 2
+#define PASSANGER_SPAWNRATE 1
 // Używane w pętlach aby oszczędzić zasoby procesora
 #define INTERVAL_TIME 1
 
@@ -96,6 +102,25 @@ int receive_message(int msq_ID, long msgtype, struct message *msg) {
         }
     }
     //Sukces
+    return 1;
+}
+
+// Odbiera pierwszy komunikat typu msgtype z możliwością przerwania przez sygnał
+// Zwraca 0 jeśli przerwane, 1 jeśli wykonane
+int receive_message_interruptible(int msq_ID, long msgtype, struct message *msg) {
+    if (msgrcv(msq_ID, msg, sizeof(*msg) - sizeof(long), msgtype, 0) == -1) {
+        if (errno == EINTR) {
+            // Przerwane przez sygnał – ponawiamy
+            return -2;
+        } else if (errno == ENOMSG) {
+            // Brak komunikatu
+            return 0;
+        } else {
+            // Błąd
+            my_error("Blad recieve_message_interruptible", msq_ID);
+            return -1;
+        }
+    }
     return 1;
 }
 
@@ -174,6 +199,18 @@ int sem_get_return(char* unique_path, int project_name, int nsems) {
     return sem_ID;
 }
 
+// Sprawdza, ile czeka na semaforze
+int sem_waiters(int sem_ID, int num) {
+    // Pobranie liczby oczekujących procesów na semaforze
+    int waiters = semctl(sem_ID, num, GETNCNT);
+    if (waiters == -1) {
+        perror("Blad uzyskiwania liczby oczekujacych na semaforze");
+        exit(1);
+    }
+    return waiters;
+}
+
+
 // Ustawianie "force" wartosci semafora
 void sem_set_value(int sem_ID, int num, int value) {
     if (semctl(sem_ID, num, SETVAL, value) == -1) {
@@ -204,16 +241,13 @@ void sem_wait(int sem_ID, int num) {
 // Zwraca 0 jeśli przerwane, 1 jeśli wykonane
 int sem_wait_interruptible(int sem_ID, int num) {
     struct sembuf sops = {num, -1, 0};
-    while(1) {
-        if (semop(sem_ID, &sops, 1) == -1) {
-            if (errno == EINTR) {
-                return 0;
-            }
-            printf("Blad wait %d %d\n", sem_ID, num);
-            my_error("Blad wait", sem_ID);
-            exit(1);
+    if (semop(sem_ID, &sops, 1) == -1) {
+        if (errno == EINTR) {
+            return 0;
         }
-        break;
+        printf("Blad wait %d %d\n", sem_ID, num);
+        my_error("Blad wait", sem_ID);
+        exit(1);
     }
     return 1;
 }

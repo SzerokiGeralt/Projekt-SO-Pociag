@@ -12,6 +12,7 @@ void handle_sigusr2() {
     reset = 1;
 }
 
+
 int main() {
     // Inicjalizacja
     srand(getpid());
@@ -24,19 +25,19 @@ int main() {
     int id = getpid();
     int platform_sem;;
     while ((platform_sem = sem_get_return(".", 1, 2)) == -1) {
-        printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        //printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
         usleep(INTERVAL_TIME*TIME_SCALE);
         
     }
     int entrance_sem;
     while ((entrance_sem = sem_get_return(".", 2, 2)) == -1) {
-        printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        //printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
         usleep(INTERVAL_TIME*TIME_SCALE);
         
     }
 
     printf("\nPasazer: Nowy pasazer PID: %d",id);
-    if (has_bike) {
+        if (has_bike) {
         printf(" z rowerem");
     }
     
@@ -46,37 +47,58 @@ int main() {
     entrance_message->ktype = id;
     entrance_message->mtype = 1;
 
-    reset_label:
-    reset = 0;
     //Główny if pasażera
     if (has_bike) {
-        //ubiega się o miejsce na platformie
-        sem_wait(platform_sem, 1);
+        while (1) {
+            if (reset) {
+                reset = 0;
+                printf("\nPasazer %d wraca na peron. 1", id);
+                continue;
+            }
 
-        //wysyła wiadomość do kierownika że jest z rowerem
-        entrance = get_message_queue(".", 1);
-        send_message(entrance, entrance_message);
+            printf("\nPasazer: Pasazer %d z rowerem czeka na peronie", id);
+            sem_wait(platform_sem, 1);
+            entrance = get_message_queue(".", 1);
+            send_message(entrance, entrance_message);
+            printf("\nPasazer: Pasazer %d z rowerem czeka u progu", id);
 
-        printf("\nPasazer: Pasazer %d z rowerem czeka u progu", id);
-        if (sem_wait_interruptible(entrance_sem, 1)==0) {
-            printf("\nPasazer %d wraca na peron", id);
-            goto reset_label;
+            if (sem_wait_interruptible(entrance_sem, 1) == 0) {
+                printf("\nPasazer %d wraca na peron. 2", id);
+                reset = 0;
+                continue;
+            }
+            if (reset) {
+                reset = 0;
+                printf("\nPasazer %d wraca na peron. 3", id);
+                continue;
+            }
+            break;
         }
-        sem_raise(platform_sem, 1);
     } else {
-        //ubiega się o miejsce na platformie
-        sem_wait(platform_sem, 0);
+        while (1) {
+            if (reset) {
+                reset = 0;
+                printf("\nPasazer %d wraca na peron. 4", id);
+                continue;
+            }
+            printf("\nPasazer: Pasazer %d czeka na peronie", id);
+            sem_wait(platform_sem, 0);
+            entrance = get_message_queue(".", 0);
+            send_message(entrance, entrance_message);
+            printf("\nPasazer: Pasazer %d czeka u progu", id);
 
-        //wysyła wiadomość do kierownika że jest bez roweru
-        entrance = get_message_queue(".", 0);
-        send_message(entrance, entrance_message);
-
-        printf("\nPasazer: Pasazer %d czeka u progu", id);
-        if (sem_wait_interruptible(entrance_sem, 0)==0 || reset==1) {
-            printf("\nPasazer %d wraca na peron", id);
-            goto reset_label;
+            if (sem_wait_interruptible(entrance_sem, 0) == 0) {
+                printf("\nPasazer %d wraca na peron. 5", id);
+                reset = 0;
+                continue;
+            }
+            if (reset) {
+                reset = 0;
+                printf("\nPasazer %d wraca na peron. 6", id);
+                continue;
+            }
+            break;
         }
-        sem_raise(platform_sem, 0);
     }
 
     //wsiada do pociągu

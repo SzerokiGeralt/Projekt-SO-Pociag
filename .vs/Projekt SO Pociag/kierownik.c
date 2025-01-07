@@ -1,6 +1,7 @@
 #include "mojeFunkcje.h"
 
 int skip_loading = 0;
+int can_raise = 1;
 
 // Obsługa sygnału SIGINT
 void handle_sigint(int sig) {
@@ -36,10 +37,16 @@ void handle_sigusr1(int sig) {
     skip_loading = 1;
 }
 
+void handle_sigusr2(int sig) {
+    printf("\nKierownik: Odebrano sygnal SIGUSR2");
+    can_raise = 0;
+}
+
 int main() {
     setbuf(stdout, NULL);
     signal(SIGINT, handle_sigint);
     signal(SIGUSR1, handle_sigusr1);
+    signal(SIGUSR2, handle_sigusr2);
 
     int train_ID = getpid();
     printf("\nNowy kierownik pociagu PID: %d", train_ID);
@@ -96,6 +103,7 @@ int main() {
 
     // Przygotowanie semaforów
     int entrance_sem = sem_get(".", 2, 2);
+    int platform_sem = sem_get(".", 1, 2);
 
     while (1) {
         // Powiadomienie zawiadowcy, że pociąg czeka na wjazd
@@ -104,33 +112,40 @@ int main() {
         send_message(train_msq, train_message);
 
         // Czekanie na zgodę na wjazd
-        receive_message(my_msq, 1, train_message);
+        receive_message_interruptible(my_msq, 1, train_message);
 
         printf("\nKierownik: pociąg %d rozpoczyna załadunek.", train_ID);
 
         // Pętla ładowania pociągu
         // Warunek ładuj dopóki nie ma maksymalnej liczby pasażerów i rowerów lub nie otrzyma komunikatu o wyjeździe
         while (passengers < MAX_PASSANGERS && skip_loading == 0) {
-            if (passengers < MAX_PASSANGERS) {
-                if (receive_message_no_wait(msq0, 1, entrance_message)) {
-                    sem_raise(entrance_sem, 0);
-                    train[passengers] = entrance_message->ktype;
-                    passengers++;
-                    passanger_pid = entrance_message->ktype;
-                    printf("\nKierownik: pasażer %d wsiadł do pociągu %d.", passanger_pid, train_ID);
+            if (passengers < MAX_PASSANGERS && receive_message_no_wait(msq0, 1, entrance_message) && skip_loading == 0 && can_raise) {
+                train[passengers] = entrance_message->ktype;
+                passengers++;
+                passanger_pid = entrance_message->ktype;
+                sem_raise(entrance_sem, 0);
+                if (passengers < MAX_PASSANGERS && skip_loading == 0 && can_raise) {
+                    
+                    
+                    sem_raise(platform_sem, 0);
                 }
+                usleep(INTERVAL_TIME*TIME_SCALE);
+                printf("\nKierownik: pasażer %d wsiadł do pociągu %d.", passanger_pid, train_ID);
             }
-            if (bikes < MAX_BIKES && passengers < MAX_PASSANGERS) {
-                if (receive_message_no_wait(msq1, 1, entrance_message)) {
-                    sem_raise(entrance_sem, 1);
-                    train[passengers] = entrance_message->ktype;
-                    passengers++;
-                    bikes++;
-                    passanger_pid = entrance_message->ktype;
-                    printf("\nKierownik: pasażer %d wsiadł do pociągu %d z rowerem.", passanger_pid, train_ID);
+            if (bikes < MAX_BIKES && passengers < MAX_PASSANGERS && receive_message_no_wait(msq1, 1, entrance_message) && skip_loading == 0 && can_raise) {
+                train[passengers] = entrance_message->ktype;
+                passengers++;
+                bikes++;
+                passanger_pid = entrance_message->ktype;
+                sem_raise(entrance_sem, 1);
+                if (bikes < MAX_BIKES && passengers < MAX_PASSANGERS && skip_loading == 0 && can_raise) {
+                    
+                    
+                    sem_raise(platform_sem, 1);
                 }
+                usleep(INTERVAL_TIME*TIME_SCALE);
+                printf("\nKierownik: pasażer %d wsiadł do pociągu %d z rowerem.", passanger_pid, train_ID);
             }
-            usleep(INTERVAL_TIME*TIME_SCALE);
         }
 
         if (skip_loading == 0) {
@@ -144,8 +159,8 @@ int main() {
         } else {
             printf("\nKierownik: pominięto załadunek pociągu %d.", train_ID);
             skip_loading = 0;
-            if (passengers == 0) {
-                printf("\nKierownik: pociąg %d jest pusty znaczy ze nie ma nikogo do odwiezienia KONIEC PRACY", train_ID);
+            if (passengers == 0 && sem_waiters(platform_sem, 0) == 0 && sem_waiters(platform_sem, 1) == 0) {
+                printf("\nKierownik: pociąg %d jest pusty i nikt nie czeka KONIEC PRACY", train_ID);
                 raise(SIGINT);
             }
         }
@@ -158,6 +173,7 @@ int main() {
         // Zerowanie liczników
         passengers = 0;
         bikes = 0;
+        can_raise = 1;
         for (int i = 0; i < MAX_PASSANGERS; i++){
             if (train[i] > 0 && train[i] != getpid()) {
                 kill(train[i], SIGINT);
