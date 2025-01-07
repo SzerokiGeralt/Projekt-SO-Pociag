@@ -1,9 +1,7 @@
 #include "mojeFunkcje.h"
-#define MAX_KIEROWNIKOW 3
 
 void handle_sigint();
 pid_t zawiadowca_pid;
-pid_t kierownik_pid[MAX_KIEROWNIKOW];
 
 void handle_sigchld(int sig) {
     int status;
@@ -11,7 +9,6 @@ void handle_sigchld(int sig) {
 
     // Pętla odbierająca wszystkie zakończone procesy potomne
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-        //printf("\nProces potomny %d zakończony.", pid);
     }
 }
 int main() {
@@ -28,28 +25,23 @@ int main() {
         exit(1);
     }
 
-    sleep(1);
-
     // Uruchomienie procesów kierownika pociągu
-    for (int i = 0; i < MAX_KIEROWNIKOW; i++) {
-        if ((kierownik_pid[i] = fork()) == 0) {
+    for (int i = 0; i < MAX_TRAINS ; i++) {
+        if (fork() == 0) {
             execl("./kierownik", "kierownik", NULL);
             perror("Nie udalo sie uruchomic procesu kierownik");
             exit(1);
         }
     }
 
-    sleep(1);
-
     // Uruchomienie procesów pasażerów
-    // W sumie 100 pasażerów
-    for (int i = 0; i < 300; i++) {
+    for (int i = 0; i < 100; i++) {
         if (fork() == 0) {
             execl("./pasazer", "pasazer", NULL);
             perror("Nie udalo sie uruchomic procesu pasazer");
             exit(1);
         }
-        sleep(rand() % 2);
+        usleep(rand() % PASSANGER_SPAWNRATE * TIME_SCALE);
     }
 
     // Oczekiwanie na zakończenie procesów podrzędnych

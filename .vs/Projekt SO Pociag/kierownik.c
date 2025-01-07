@@ -16,9 +16,11 @@ void handle_sigint(int sig) {
         exit(0);
     }
     int* register_shm_pointer = shared_mem_attach_int(register_shm);
-    int max_trains = shared_mem_size(register_shm)/ sizeof(int);
+    // Tutaj pozostał fajny kawałek kodu ale już niepotrzebny ze względu na definicje w mojeFunkcje.h
+    //int max_trains = shared_mem_size(register_shm)/ sizeof(int);
+
     // Sprawdzenie rejestru pociągów i usunięcie PID pociągu
-    for (int i = 0; i < max_trains; i++) {
+    for (int i = 0; i < MAX_TRAINS; i++) {
         if (register_shm_pointer[i] == getpid()) {
             register_shm_pointer[i] = 0;
             printf("\nKierownik: Usuwam pociąg %d z rejestru.", getpid());
@@ -46,7 +48,8 @@ int main() {
     int register_sem;
     while ((register_sem = sem_get_return(".", 3, 1)) == -1) {
         printf("\nKierownik: Brak zawiadowcy. Czekam %d ...", train_ID);
-        sleep(1);
+        usleep(INTERVAL_TIME*TIME_SCALE);
+        
     }
     // Oczekiwanie na dostepnosc rejestru zawiadowcy
     sem_wait(register_sem, 0);
@@ -54,9 +57,8 @@ int main() {
     int register_shm = shared_mem_get(".", 1);
     int* register_shm_pointer = shared_mem_attach_int(register_shm);
     int train_registered = 0;
-    int max_trains = shared_mem_size(register_shm)/ sizeof(int);
     
-    for (int i = 0; i < max_trains; i++) {
+    for (int i = 0; i < MAX_TRAINS; i++) {
         if (register_shm_pointer[i] == 0) {
             register_shm_pointer[i] = train_ID;
             train_registered = 1;
@@ -74,14 +76,12 @@ int main() {
     
 
     // Inicjalizacja zmiennych
-    int max_passengers = 50;
-    int max_bikes = 20;
     int passengers = 0;
     int bikes = 0;
     int passanger_pid;
     
-    pid_t* train = malloc(sizeof(int)*(max_passengers));
-    for (int i = 0; i < max_passengers; i++){
+    pid_t* train = malloc(sizeof(int)*(MAX_PASSANGERS));
+    for (int i = 0; i < MAX_PASSANGERS; i++){
         train[i] = 0;
     }
     
@@ -110,29 +110,27 @@ int main() {
 
         // Pętla ładowania pociągu
         // Warunek ładuj dopóki nie ma maksymalnej liczby pasażerów i rowerów lub nie otrzyma komunikatu o wyjeździe
-        while (passengers < max_passengers && skip_loading == 0) {
-            if (passengers < max_passengers) {
+        while (passengers < MAX_PASSANGERS && skip_loading == 0) {
+            if (passengers < MAX_PASSANGERS) {
                 if (receive_message_no_wait(msq0, 1, entrance_message)) {
                     sem_raise(entrance_sem, 0);
                     train[passengers] = entrance_message->ktype;
                     passengers++;
                     passanger_pid = entrance_message->ktype;
-                    sleep(1);
                     printf("\nKierownik: pasażer %d wsiadł do pociągu %d.", passanger_pid, train_ID);
                 }
             }
-            if (bikes < max_bikes && passengers < max_passengers) {
+            if (bikes < MAX_BIKES && passengers < MAX_PASSANGERS) {
                 if (receive_message_no_wait(msq1, 1, entrance_message)) {
                     sem_raise(entrance_sem, 1);
                     train[passengers] = entrance_message->ktype;
                     passengers++;
                     bikes++;
                     passanger_pid = entrance_message->ktype;
-                    sleep(1);
                     printf("\nKierownik: pasażer %d wsiadł do pociągu %d z rowerem.", passanger_pid, train_ID);
                 }
             }
-            sleep(0.5);
+            usleep(INTERVAL_TIME*TIME_SCALE);
         }
 
         if (skip_loading == 0) {
@@ -147,26 +145,26 @@ int main() {
             printf("\nKierownik: pominięto załadunek pociągu %d.", train_ID);
             skip_loading = 0;
             if (passengers == 0) {
-                printf("\nKierownik: pociąg %d jest pusty znaczy ze nie ma nikogo do odwiezienia ADIOS", train_ID);
-                raise(2);
+                printf("\nKierownik: pociąg %d jest pusty znaczy ze nie ma nikogo do odwiezienia KONIEC PRACY", train_ID);
+                raise(SIGINT);
             }
         }
         
         // Wyjazd pociągu
         printf("\nKierownik: pociąg %d odjeżdża.", train_ID);
-        sleep(15);
+        usleep(TRAVEL_TIME*TIME_SCALE/2);
         // Pociag dotarł do celu
         printf("\nKierownik: pociąg %d dotarł do celu.", train_ID);
         // Zerowanie liczników
         passengers = 0;
         bikes = 0;
-        for (int i = 0; i < max_passengers; i++){
+        for (int i = 0; i < MAX_PASSANGERS; i++){
             if (train[i] > 0 && train[i] != getpid()) {
                 kill(train[i], SIGINT);
             }
             train[i] = 0;
         }
-        sleep(15);
+        usleep(TRAVEL_TIME*TIME_SCALE/2);
         printf("\nKierownik: pociąg %d wrócił.", train_ID);
     }
 

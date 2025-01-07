@@ -16,7 +16,7 @@ void handle_sigint(int sig) {
 
 int wait_time(int value) {
     // Maksymalny czas oczekiwania na załadunek
-    sleep(value); 
+    usleep(value); 
     return 0;
 }
 
@@ -58,9 +58,6 @@ void close_gates() {
 }
 
 int main(int argc, char *argv[]) {
-    int max_waittime = 30;
-    int max_trains = 3;
-
     setbuf(stdout, NULL);
     signal(SIGINT, handle_sigint);
 
@@ -89,9 +86,9 @@ int main(int argc, char *argv[]) {
 
     // Przygotowanie pamięci współdzielonej dla rejestracji pociągów
     //sem_set_value(register_sem, 0, 0);
-    int register_shm = shared_mem_create(".", 1, max_trains*sizeof(int));
+    int register_shm = shared_mem_create(".", 1, MAX_TRAINS*sizeof(int));
     int* register_shm_pointer = shared_mem_attach_int(register_shm);
-    for (int i = 0; i < max_trains; i++) {
+    for (int i = 0; i < MAX_TRAINS; i++) {
         // Zapewniamy puste miejsca w rejestrze
         register_shm_pointer[i] = 0;
     }
@@ -121,7 +118,7 @@ int main(int argc, char *argv[]) {
         // Tworzenie procesów sprawdzających warunki odjazdu
         wait_time_pid = fork();
         if (wait_time_pid == 0) {
-            wait_time(max_waittime);
+            wait_time(MAX_WAITTIME*TIME_SCALE);
             exit(0);
         }
         wait_loaded_pid = fork();
@@ -173,7 +170,7 @@ int main(int argc, char *argv[]) {
         int all_trains_empty = 0;
         sem_wait(register_sem, 0);
         all_trains_empty = 1;
-        for (int i = 0; i < max_trains; i++) {
+        for (int i = 0; i < MAX_TRAINS; i++) {
             if (register_shm_pointer[i] != 0) {
             printf("\nZawiadowca: pociąg %d w rejestrze.", register_shm_pointer[i]);
             all_trains_empty = 0;
@@ -182,10 +179,10 @@ int main(int argc, char *argv[]) {
         }
         sem_raise(register_sem, 0);
         if (all_trains_empty) {
-            printf("\nZawiadowca: brak pociągów w rejestrze, kończę pracę.");
+            printf("\nZawiadowca: brak pociągów w rejestrze KONIEC PRACY");
             raise(SIGINT);
         }
-            sleep(1);
+            usleep(INTERVAL_TIME*TIME_SCALE);
             printf("\nZawiadowca: oczekiwanie na pociąg.");
         }
         train_ID = train_message->ktype;

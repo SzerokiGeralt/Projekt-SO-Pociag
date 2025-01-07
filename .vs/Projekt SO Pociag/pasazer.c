@@ -1,5 +1,6 @@
 #include "mojeFunkcje.h"
 
+int reset = 0;
 
 void handle_sigint() {
     printf("\nPasazer %d dotarl do destynacji", getpid());
@@ -8,6 +9,7 @@ void handle_sigint() {
 
 void handle_sigusr2() {
     printf("\nPasazer %d otrzymal sygnal SIGUSR2", getpid());
+    reset = 1;
 }
 
 int main() {
@@ -20,9 +22,18 @@ int main() {
 
     // Inicjalizacja zmiennych
     int id = getpid();
-    int platform_sem = sem_get(".", 1, 2);
-    int entrance_sem = sem_get(".", 2, 2);
-
+    int platform_sem;;
+    while ((platform_sem = sem_get_return(".", 1, 2)) == -1) {
+        printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        usleep(INTERVAL_TIME*TIME_SCALE);
+        
+    }
+    int entrance_sem;
+    while ((entrance_sem = sem_get_return(".", 2, 2)) == -1) {
+        printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        usleep(INTERVAL_TIME*TIME_SCALE);
+        
+    }
 
     printf("\nPasazer: Nowy pasazer PID: %d",id);
     if (has_bike) {
@@ -36,6 +47,7 @@ int main() {
     entrance_message->mtype = 1;
 
     reset_label:
+    reset = 0;
     //Główny if pasażera
     if (has_bike) {
         //ubiega się o miejsce na platformie
@@ -60,7 +72,7 @@ int main() {
         send_message(entrance, entrance_message);
 
         printf("\nPasazer: Pasazer %d czeka u progu", id);
-        if (sem_wait_interruptible(entrance_sem, 0)==0) {
+        if (sem_wait_interruptible(entrance_sem, 0)==0 || reset==1) {
             printf("\nPasazer %d wraca na peron", id);
             goto reset_label;
         }
@@ -72,11 +84,9 @@ int main() {
 
     //czeka na dotarcie do celu
 
-    sleep(60);
     while (1)
     {
-        printf("\nPasazer: Pasazer %d czeka opóźniony", id);
-        sleep(1);
+        usleep(INTERVAL_TIME*TIME_SCALE);
     }
     
     
