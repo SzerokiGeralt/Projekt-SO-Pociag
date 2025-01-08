@@ -19,7 +19,7 @@ int main() {
     printf("Uruchomiono zaawansowana symulacje kolejowa\nstworzona przez Karol Kapusta.\nProject not sponsored by \"Koleje Malopolskie\"\n\n");
 
     // Uruchomienie procesów pasażerów
-    for (int i = 0; i < 300; i++) {
+    for (int i = 0; i < 10; i++) {
         if (fork() == 0) {
             execl("./pasazer", "pasazer", NULL);
             perror("Nie udalo sie uruchomic procesu pasazer");

@@ -2,6 +2,7 @@
 
 void handle_sigint(int sig) {
     printf("\nZawiadowca: Odebrano sygnal SIGINT");
+    log_to_file("\nZawiadowca: Odebrano sygnal SIGINT");
     // Usuwanie wszystkich zasobów
     destroy_message_queue(get_message_queue(".", 0));
     destroy_message_queue(get_message_queue(".", 1));
@@ -34,26 +35,32 @@ void force_passanger_exit_queue(int platform_sem) {
     // Wysłanie sygnału do czekajacych pasażerów o opuszczeniu kolejki
     if (receive_message_no_wait(get_message_queue(".", 0), 1, entrance_message)) {
         printf("\nZawiadowca: wykryto pasażera %ld u progu proszenie o wyjście.", entrance_message->ktype);
+        log_to_file("\nZawiadowca: wykryto pasażera %ld u progu proszenie o wyjście.", entrance_message->ktype);
         temp_pid = entrance_message->ktype;
         kill(temp_pid, SIGUSR2);
         while (sem_waiters(platform_sem, 0) == 0)
         {
             printf("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
-            sleep(INTERVAL_TIME*TIME_SCALE);
+            log_to_file("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
+            usleep(INTERVAL_TIME*TIME_SCALE);
         }
         
     }
     if (receive_message_no_wait(get_message_queue(".", 1), 1, entrance_message)) {
         printf("\nZawiadowca: wykryto pasażera %ld u progu proszenie o wyjście.", entrance_message->ktype);
+        log_to_file("\nZawiadowca: wykryto pasażera %ld u progu proszenie o wyjście.", entrance_message->ktype);
         temp_pid = entrance_message->ktype;
         kill(temp_pid, SIGUSR2);
         while (sem_waiters(platform_sem, 1) == 0)
         {
             printf("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
-            sleep(INTERVAL_TIME*TIME_SCALE);
+            log_to_file("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
+            usleep(INTERVAL_TIME*TIME_SCALE);
         }        
     }
     free(entrance_message);
+    printf("\nZawiadowca: wszyscy odeszli od krawędzi");
+    log_to_file("\nZawiadowca: wszyscy odeszli od krawędzi");
     return;
 }
 
@@ -61,12 +68,14 @@ void open_gates() {
     sem_set_value(sem_get(".", 1, 2), 0, 1);
     sem_set_value(sem_get(".", 1, 2), 1, 1);
     printf("\nZawiadowca: otwieram bramki.");
+    log_to_file("\nZawiadowca: otwieram bramki.");
 }
 
 void close_gates() {
     sem_set_value(sem_get(".", 1, 2), 0, 0);
     sem_set_value(sem_get(".", 1, 2), 1, 0);
     printf("\nZawiadowca: zamykam bramki.");
+    log_to_file("\nZawiadowca: zamykam bramki.");
 }
 
 int main(int argc, char *argv[]) {
@@ -74,11 +83,13 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, handle_sigint);
 
     printf("\nNowy zawiadowca stacji PID: %d", getpid());
+    log_to_file("\nNowy zawiadowca stacji PID: %d", getpid());
 
     // Semafor do otwierania i zamykania bramek na peronie
     int platform_sem = sem_create_once(".", 1, 2);
     if (platform_sem == -1) {
         printf("\nInny zawiadowca już istnieje");
+        log_to_file("\nInny zawiadowca już istnieje");
         exit(1);
     }
     sem_set_value(platform_sem, 0, 0);
@@ -88,6 +99,7 @@ int main(int argc, char *argv[]) {
     int entrance_sem = sem_create_once(".", 2, 2);
     if (entrance_sem == -1) {
         printf("\nInny zawiadowca już istnieje");
+        log_to_file("\nInny zawiadowca już istnieje");
         exit(1);
     }
     sem_set_value(entrance_sem, 0, 0);
@@ -125,7 +137,6 @@ int main(int argc, char *argv[]) {
         train_message->mtype = 1; // Zgoda na załadunek
         send_message(waiting_train_msq, train_message);
 
-        open_gates();
 
         // Tworzenie procesów sprawdzających warunki odjazdu
         wait_time_pid = fork();
@@ -139,44 +150,66 @@ int main(int argc, char *argv[]) {
             exit(0);
         }
 
+        open_gates();
+
         //Czeka na skonczenie procesów sprawdzajacych warunki odjazdu
         int status;
         finished_pid = wait(&status);
         if (finished_pid == wait_time_pid) {
+            // Nie pozwalamy pasażerom na wsiadanie
+            close_gates();
+
+            // Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
+            kill(train_ID, SIGUSR1);
+
             printf("\nZawiadowca: pociąg stoi za długo.");
+            log_to_file("\nZawiadowca: pociąg stoi za długo.");
             kill(wait_loaded_pid, SIGKILL);
 
             // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
             wait(NULL);
 
-            // Nie pozwalamy pasażerom na wsiadanie
-            kill(train_ID, SIGUSR2);
-            close_gates();
-
             // Czekamy aż wszyscy pasażerowie zejdą z wejścia
             while (sem_waiters(entrance_sem, 0) != 0 || sem_waiters(entrance_sem, 1) != 0)
             {
+                printf("\nZawiadowca: oczekiwanie na zejście pasażerów.");
+                log_to_file("\nZawiadowca: oczekiwanie na zejście pasażerów.");
+                printf("\n%d",sem_waiters(entrance_sem, 0));
+                log_to_file("\n%d",sem_waiters(entrance_sem, 0));
+                printf("\n%d",sem_waiters(entrance_sem, 1));
+                log_to_file("\n%d",sem_waiters(entrance_sem, 1));
                 force_passanger_exit_queue(platform_sem);
+                usleep(INTERVAL_TIME*TIME_SCALE);
             }
 
-            // Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
+
             // Zezwalamy na odjazd pociągu
-            kill(train_ID, SIGUSR1);
+            train_message->mtype = 2;
+            send_message(waiting_train_msq, train_message);
+            printf("\nZawiadowca: pociąg %d może odjechać.", train_ID);
+            log_to_file("\nZawiadowca: pociąg %d może odjechać.", train_ID);
         } else {
+            // Nie pozwalamy pasażerom na wsiadanie
+            close_gates();
+
             printf("\nZawiadowca: pociąg %d jest pełny.", train_ID);
+            log_to_file("\nZawiadowca: pociąg %d jest pełny.", train_ID);
             kill(wait_time_pid, SIGKILL);
 
             // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
             wait(NULL);
 
-            // Nie pozwalamy pasażerom na wsiadanie
-            kill(train_ID, SIGUSR2);
-            close_gates();
-
             // Czekamy aż wszyscy pasażerowie zejdą z wejścia
             while (sem_waiters(entrance_sem, 0) != 0 || sem_waiters(entrance_sem, 1) != 0)
             {
+                printf("\nZawiadowca: oczekiwanie na zejście pasażerów.");
+                log_to_file("\nZawiadowca: oczekiwanie na zejście pasażerów.");
+                printf("\n%d",sem_waiters(entrance_sem, 0));
+                log_to_file("\n%d",sem_waiters(entrance_sem, 0));
+                printf("\n%d",sem_waiters(entrance_sem, 1));
+                log_to_file("\n%d",sem_waiters(entrance_sem, 1));
                 force_passanger_exit_queue(platform_sem);
+                usleep(INTERVAL_TIME*TIME_SCALE);
             }
             
             
@@ -185,11 +218,18 @@ int main(int argc, char *argv[]) {
             // Zezwalamy na odjazd pociągu
             train_message->mtype = 2;
             send_message(waiting_train_msq, train_message);
-            printf("\nZawiadowca: pociąg %d odjeżdża.", train_ID);
+            printf("\nZawiadowca: pociąg %d może odjechać.", train_ID);
+            log_to_file("\nZawiadowca: pociąg %d może odjechać.", train_ID);
         }
         
+        // Czeka aż potwierdzi odjazd
+        receive_message(waiting_train_msq,3,train_message);
+        printf("\nPociąg %ld odjechał",train_message->ktype);
+        log_to_file("\nPociąg %ld odjechał",train_message->ktype);
+
         // Oczekiwanie na pociąg
         printf("\nZawiadowca: oczekiwanie na pociąg.");
+        log_to_file("\nZawiadowca: oczekiwanie na pociąg.");
         while (receive_message_no_wait(arriving_train_msq, 1, train_message) == 0)
         {
         // Sprawdzenie czy są jeszcze jakieś pociągi w rejestrze
@@ -199,6 +239,7 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < MAX_TRAINS; i++) {
             if (register_shm_pointer[i] != 0) {
             printf("\nZawiadowca: pociąg %d w rejestrze.", register_shm_pointer[i]);
+            log_to_file("\nZawiadowca: pociąg %d w rejestrze.", register_shm_pointer[i]);
             all_trains_empty = 0;
             break;
             }
@@ -206,14 +247,17 @@ int main(int argc, char *argv[]) {
         sem_raise(register_sem, 0);
         if (all_trains_empty) {
             printf("\nZawiadowca: brak pociągów w rejestrze KONIEC PRACY");
+            log_to_file("\nZawiadowca: brak pociągów w rejestrze KONIEC PRACY");
             raise(SIGINT);
         }
             usleep(INTERVAL_TIME*TIME_SCALE);
             printf("\nZawiadowca: oczekiwanie na pociąg.");
+            log_to_file("\nZawiadowca: oczekiwanie na pociąg.");
         }
         train_ID = train_message->ktype;
 
         printf("\nZawiadowca: pociag %d otrzymuje zezwolenie na wjazd.", train_ID);
+        log_to_file("\nZawiadowca: pociag %d otrzymuje zezwolenie na wjazd.", train_ID);
 
 
     }

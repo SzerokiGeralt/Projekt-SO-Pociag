@@ -19,13 +19,14 @@
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <stdarg.h>
 
 
 // Stałe używane do kontrolowania projektu
 // Prawa dostepu do elementów IPC
 #define ACCESS_RIGHTS 0600
 // Skala czasu symulacji
-#define TIME_SCALE 1
+#define TIME_SCALE 1000000
 // Czas podróży pociągu
 #define TRAVEL_TIME 1
 // Maksymalny czas oczekiwania na załadunek
@@ -47,6 +48,7 @@ struct message {
     long ktype;
 };
 
+
 // Funkcja do sprawdzania błędów
 void my_error(const char *msg, int id) {
     if (errno != 0) {
@@ -54,6 +56,26 @@ void my_error(const char *msg, int id) {
         snprintf(my_perror_msg, sizeof(my_perror_msg), "PID: %d - ID: %d - %s", getpid(), id, msg);
         perror(my_perror_msg);
     }
+}
+
+// Funkcja do zapisywania logów do pliku
+void log_to_file(const char *format, ...) {
+    char filename[256];
+    snprintf(filename, sizeof(filename), "log_%d.txt", getpid());
+
+    FILE *file = fopen(filename, "a");
+    if (file == NULL) {
+        my_error("Blad otwierania pliku logu", -1);
+        return;
+    }
+
+    va_list args;
+    va_start(args, format);
+    vfprintf(file, format, args);
+    va_end(args);
+
+    fprintf(file, "\n");
+    fclose(file);
 }
 
 // Tworzy lub uzyskuje dostęp do kolejki komunikatów, zwraca message queue ID
@@ -89,20 +111,25 @@ void destroy_message_queue(int msq_ID) {
     }
 }
 
-//Odbiera pierwszy komunikat typu msgtype
+// Odbiera pierwszy komunikat typu msgtype bez możliwości przerwania przez sygnał
 int receive_message(int msq_ID, long msgtype, struct message *msg) {
-    if (msgrcv(msq_ID, msg, sizeof(*msg) - sizeof(long), msgtype, 0) == -1) {
-        if (errno == ENOMSG) {
-            //Brak komunikatu
-            return 0;
-        } else {
-            //Błąd
-            my_error("Blad recieve_message", msq_ID);
-            return -1;
+    while (1) {
+        if (msgrcv(msq_ID, msg, sizeof(*msg) - sizeof(long), msgtype, 0) == -1) {
+            if (errno == EINTR) {
+                // Przerwane przez sygnał – ponawiamy
+                continue;
+            } else if (errno == ENOMSG) {
+                // Brak komunikatu
+                return 0;
+            } else {
+                // Błąd
+                my_error("Blad recieve_message", msq_ID);
+                return -1;
+            }
         }
+        // Sukces
+        return 1;
     }
-    //Sukces
-    return 1;
 }
 
 // Odbiera pierwszy komunikat typu msgtype z możliwością przerwania przez sygnał
@@ -236,6 +263,7 @@ void sem_wait(int sem_ID, int num) {
         break;
     }
 }
+
 
 // Operacja P (czekanie na semafor) z możliwością przerwania przez sygnał
 // Zwraca 0 jeśli przerwane, 1 jeśli wykonane

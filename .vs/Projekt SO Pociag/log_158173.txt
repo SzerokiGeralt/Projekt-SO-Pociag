@@ -1,0 +1,48 @@
+
+Nowy kierownik pociagu PID: 158173
+
+Kierownik: Brak zawiadowcy. Czekam 158173 ...
+
+Kierownik: Zarejestrowano pociąg 158173.
+
+Kierownik: pociąg 158173 rozpoczyna załadunek.
+
+Kierownik: pasażer 158168 wsiadł do pociągu 158173.
+
+Kierownik: Odebrano sygnal SIGUSR1
+
+Kierownik: pasażer 158165 wsiadł do pociągu 158173 z rowerem.
+
+Kierownik: pominięto załadunek pociągu 158173.
+
+Kierownik: pociąg 158173 odjeżdża.
+
+Kierownik: pociąg 158173 dotarł do celu.
+
+Kierownik: pociąg 158173 wrócił.
+
+Kierownik: pociąg 158173 rozpoczyna załadunek.
+
+Kierownik: pasażer 158167 wsiadł do pociągu 158173.
+
+Kierownik: Odebrano sygnal SIGUSR1
+
+Kierownik: pominięto załadunek pociągu 158173.
+
+Kierownik: pociąg 158173 odjeżdża.
+
+Kierownik: pociąg 158173 dotarł do celu.
+
+Kierownik: pociąg 158173 wrócił.
+
+Kierownik: pociąg 158173 rozpoczyna załadunek.
+
+Kierownik: Odebrano sygnal SIGUSR1
+
+Kierownik: pominięto załadunek pociągu 158173.
+
+Kierownik: Brak pasażerów i oczekujących. Kończę proces.
+
+Kierownik: Odebrano sygnal SIGINT
+
+Kierownik: Usuwam pociąg 158173 z rejestru.
