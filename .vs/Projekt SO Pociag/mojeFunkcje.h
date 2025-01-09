@@ -26,21 +26,23 @@
 // Prawa dostepu do elementów IPC
 #define ACCESS_RIGHTS 0600
 // Skala czasu symulacji
-#define TIME_SCALE 1000000
+#define TIME_SCALE 1
 // Czas podróży pociągu
-#define TRAVEL_TIME 1
+#define TRAVEL_TIME 10
 // Maksymalny czas oczekiwania na załadunek
-#define MAX_WAITTIME 1
+#define MAX_WAITTIME 5
 // Maksymalna liczba pociągów
 #define MAX_TRAINS 3
 // Maksymalna liczba pasażerów
-#define MAX_PASSANGERS 10
+#define MAX_PASSANGERS 20
 // Maksymalna liczba rowerów
-#define MAX_BIKES 5
+#define MAX_BIKES 10
 // Częstotliwość generowania pasażerów (używane w master.c)
-#define PASSANGER_SPAWNRATE 1
+#define PASSANGER_SPAWNRATE 2
 // Używane w pętlach aby oszczędzić zasoby procesora
 #define INTERVAL_TIME 1
+// Ilość tworzonych pasażerów (używane w master.c)
+#define SPAWN_PASSANGERS 300
 
 // Struktura komunikatu
 struct message {
@@ -48,6 +50,8 @@ struct message {
     long ktype;
 };
 
+void log_to_file(const char *format, ...);
+void my_error(const char *msg, int id);
 
 // Funkcja do sprawdzania błędów
 void my_error(const char *msg, int id) {
@@ -97,11 +101,22 @@ int get_message_queue(const char *path, int proj_ID) {
 
 // Wysyła komunikat
 int send_message(int msq_ID, struct message *msg) {
-    if (msgsnd(msq_ID, msg, sizeof(*msg) - sizeof(long), 0) == -1) {
-        my_error("Blad send_message", msq_ID);
-        return -1;
+    while (1) {
+        log_to_file("\nWysyłanie komunikatu o typie: %ld do kolejki: %d", msg->mtype, msq_ID);
+        printf("\nWysyłanie komunikatu o typie: %ld do kolejki: %d", msg->mtype, msq_ID);
+        if (msgsnd(msq_ID, msg, sizeof(*msg) - sizeof(long), 0) == -1) {
+            if (errno == EINTR) {
+                log_to_file("Przerwano przez sygnał podczas wysyłania komunikatu");
+                printf("Przerwano przez sygnał podczas wysyłania komunikatu\n");
+                // Przerwane przez sygnał – ponawiamy
+                continue;
+            }
+            my_error("Blad send_message", msq_ID);
+            return -1;
+        }
+        // Sukces
+        return 0;
     }
-    return 0;
 }
 
 // Niszczy kolejkę komunikatów
@@ -114,15 +129,23 @@ void destroy_message_queue(int msq_ID) {
 // Odbiera pierwszy komunikat typu msgtype bez możliwości przerwania przez sygnał
 int receive_message(int msq_ID, long msgtype, struct message *msg) {
     while (1) {
+        log_to_file("\nOdbieranie komunikatu o typie: %ld z kolejki: %d", msgtype, msq_ID);
+        printf("\nOdbieranie komunikatu o typie: %ld z kolejki: %d", msgtype, msq_ID);
         if (msgrcv(msq_ID, msg, sizeof(*msg) - sizeof(long), msgtype, 0) == -1) {
             if (errno == EINTR) {
+                log_to_file("Przerwano przez sygnał podczas odbierania komunikatu o typie: %ld", msgtype);
+                printf("Przerwano przez sygnał podczas odbierania komunikatu o typie: %ld\n", msgtype);
                 // Przerwane przez sygnał – ponawiamy
                 continue;
             } else if (errno == ENOMSG) {
                 // Brak komunikatu
-                return 0;
+                log_to_file("Brak komunikatu w kolejce o typie: %ld", msgtype);
+                printf("Brak komunikatu w kolejce o typie: %ld\n", msgtype);
+                continue;
             } else {
                 // Błąd
+                log_to_file("Blad recieve_message: %ld", msgtype);
+                printf("Blad recieve_message: %ld\n", msgtype);
                 my_error("Blad recieve_message", msq_ID);
                 return -1;
             }
@@ -253,6 +276,8 @@ void sem_wait(int sem_ID, int num) {
     while(1) {
         if (semop(sem_ID, &sops, 1) == -1) {
             if (errno == EINTR) {
+                log_to_file("Przerwano przez sygnał podczas oczekiwania na semafor");
+                printf("Przerwano przez sygnał podczas oczekiwania na semafor\n");
                 // Przerwane przez sygnał – ponawiamy
                 continue;
             }

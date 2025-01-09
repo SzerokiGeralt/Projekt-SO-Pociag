@@ -106,11 +106,19 @@ int main() {
         train_message->mtype = 1; // Gotowy do załadunku
         send_message(train_msq, train_message);
 
+        log_to_file("\nKierownik: pociąg %d czeka na zgodę na wjazd.", train_ID);
+        printf("\nKierownik: pociąg %d czeka na zgodę na wjazd.", train_ID);
+
         // Czekanie na zgodę na wjazd
-        receive_message(my_msq, 1, train_message);
+        receive_message(my_msq, train_ID, train_message);
+
 
         log_to_file("\nKierownik: pociąg %d rozpoczyna załadunek.", train_ID);
         printf("\nKierownik: pociąg %d rozpoczyna załadunek.", train_ID);
+
+        train_message->ktype = train_ID;
+        train_message->mtype = 7;
+        send_message(my_msq, train_message);
 
         // Pętla ładowania pociągu
         // Warunek ładuj dopóki nie ma maksymalnej liczby pasażerów i rowerów lub nie otrzyma sygnału
@@ -118,10 +126,11 @@ int main() {
             if (passengers < MAX_PASSANGERS && skip_loading == 0) {
                 if (receive_message_no_wait(msq0, 1, entrance_message))
                 {
-                    train[passengers] = entrance_message->ktype;
-                    passengers++;
                     passanger_pid = entrance_message->ktype;
+                    train[passengers] = passanger_pid;
+                    passengers++;
                     sem_raise(entrance_sem, 0);
+                    receive_message(msq0,passanger_pid,entrance_message);
                     if (passengers < MAX_PASSANGERS && skip_loading == 0) {
                         sem_raise(platform_sem, 0);
                     }
@@ -133,11 +142,12 @@ int main() {
             if (bikes < MAX_BIKES && passengers < MAX_PASSANGERS && skip_loading == 0) {
                 if (receive_message_no_wait(msq1, 1, entrance_message))
                 {
-                    train[passengers] = entrance_message->ktype;
+                    passanger_pid = entrance_message->ktype;
+                    train[passengers] = passanger_pid;
                     passengers++;
                     bikes++;
-                    passanger_pid = entrance_message->ktype;
                     sem_raise(entrance_sem, 1);
+                    receive_message(msq1,passanger_pid,entrance_message);
                     if (bikes < MAX_BIKES && passengers < MAX_PASSANGERS && skip_loading == 0) {
                         sem_raise(platform_sem, 1);
                     }
@@ -147,26 +157,40 @@ int main() {
                 }
             }
         }
+        sem_set_value(sem_get(".", 1, 2), 0, 0);
+        sem_set_value(sem_get(".", 1, 2), 1, 0);
+        log_to_file("\nKierownik: Powiadomienie zawiadowcy, że przerwano ładowanie pociągu %d powód: %d.", train_ID, skip_loading ? 4 : 6);
+        printf("\nKierownik: Powiadomienie zawiadowcy, że przerwano ładowanie pociągu %d powód: %d.", train_ID, skip_loading ? 4 : 6);
+        // Powiadomienie zawiadowcy, że przerwano ładowanie
+        train_message->ktype = train_ID;
+        train_message->mtype = skip_loading ? 4 : 6; // 4 - skip loading 6 - full
+        send_message(my_msq, train_message);
 
-        if (skip_loading == 0) {
-            // Powiadomienie zawiadowcy, że pociąg jest pełny
-            train_message->ktype = train_ID;
-            train_message->mtype = 2; // Gotowość do odjazdu
-            send_message(my_msq, train_message);
+        log_to_file("\nKierownik: pociąg %d czeka na decyzję zawiadowcy.", train_ID);
+        printf("\nKierownik: pociąg %d czeka na decyzję zawiadowcy.", train_ID);
+        // Czeka na decyzję zawiadowcy
+        receive_message(my_msq, 5, train_message);
 
-            // Czekanie na zgodę na wyjazd
-            receive_message(my_msq, 2, train_message);
+        if (train_message->ktype == 1) {
+            log_to_file("\nKierownik: pociag %d jest pełny, powiadamianie zawiadowcy.", train_ID);
+            printf("\nKierownik: pociag %d jest pełny, powiadamianie zawiadowcy.", train_ID);
         } else {
+
             log_to_file("\nKierownik: pominięto załadunek pociągu %d.", train_ID);
             printf("\nKierownik: pominięto załadunek pociągu %d.", train_ID);
             skip_loading = 0;
-
-            // Czekanie na zgodę na wyjazd
-            receive_message(my_msq, 2, train_message);
         }
 
+        log_to_file("\nKierownik: pociąg %d czekanie na zgodę na odjazd.", train_ID);
+        printf("\nKierownik: pociąg %d czekanie na zgodę na odjazd.", train_ID);
+        // Czekanie na zgodę na wyjazd
+        receive_message(my_msq, 2, train_message);
+
+        log_to_file("\nKierownik: pociąg %d powiadomienie zawiadowcy o odjeździe.", train_ID);
+        printf("\nKierownik: pociąg %d powiadomienie zawiadowcy o odjeździe.", train_ID);        
+        // Powiadomienie zawiadowcy o odjeździe
         train_message->ktype = train_ID;
-        train_message->mtype = 3; // Odjazd
+        train_message->mtype = 3;
         send_message(my_msq, train_message);
 
 

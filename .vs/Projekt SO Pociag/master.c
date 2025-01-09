@@ -12,6 +12,9 @@ void handle_sigchld(int sig) {
     }
 }
 int main() {
+    // Usuwanie wszystkich plików log*.txt
+    system("rm -f log*.txt");
+    
     setbuf(stdout, NULL);
     signal(SIGINT, handle_sigint);
     signal(SIGCHLD, handle_sigchld);
@@ -19,7 +22,7 @@ int main() {
     printf("Uruchomiono zaawansowana symulacje kolejowa\nstworzona przez Karol Kapusta.\nProject not sponsored by \"Koleje Malopolskie\"\n\n");
 
     // Uruchomienie procesów pasażerów
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < SPAWN_PASSANGERS ; i++) {
         if (fork() == 0) {
             execl("./pasazer", "pasazer", NULL);
             perror("Nie udalo sie uruchomic procesu pasazer");

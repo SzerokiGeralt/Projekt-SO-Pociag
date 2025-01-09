@@ -21,9 +21,11 @@ int wait_time(int value) {
     return 0;
 }
 
-int wait_loaded(long train_ID, struct message* train_message, int msq_ID) {
+int wait_loaded(struct message* train_message, int msq_ID) {
     // Oczekiwanie na informację o pełnym pociągu
-    receive_message(msq_ID, 2, train_message);
+    receive_message(msq_ID, 6, train_message);
+    printf("\nZawiadowca: Odebrano wiadomosc 6, pociąg %ld jest pełny.", train_message->ktype);
+    log_to_file("\nZawiadowca: Odebrano wiadomosc 6, pociąg %ld jest pełny.", train_message->ktype);
     return 0;
 }
 
@@ -128,16 +130,25 @@ int main(int argc, char *argv[]) {
     int waiting_train_msq = get_message_queue(".", 3); // Kolejka kierownika
     struct message* train_message = malloc(sizeof(struct message));
 
+    printf("\nZawiadowca: oczekiwanie na pierwszy pociąg.");
+    log_to_file("\nZawiadowca: oczekiwanie na pierwszy pociąg.");
     receive_message(arriving_train_msq, 1, train_message);
     int train_ID = train_message->ktype;
 
     while (1) {
 
         // Powiadomienie kierownika, że może rozpocząć załadunek
-        train_message->mtype = 1; // Zgoda na załadunek
+        train_message->mtype = train_ID;
+        train_message->ktype = train_ID;
         send_message(waiting_train_msq, train_message);
 
+        printf("\nZawiadowca: oczekiwanie na rozpoczęcie ładowania %d.",train_ID);
+        log_to_file("\nZawiadowca: oczekiwanie na rozpoczęcie ładowania %d.",train_ID);
+        receive_message(waiting_train_msq,7,train_message);
 
+
+        open_gates();
+        
         // Tworzenie procesów sprawdzających warunki odjazdu
         wait_time_pid = fork();
         if (wait_time_pid == 0) {
@@ -146,22 +157,18 @@ int main(int argc, char *argv[]) {
         }
         wait_loaded_pid = fork();
         if (wait_loaded_pid == 0) {
-            wait_loaded(train_ID, train_message, waiting_train_msq);
+            wait_loaded(train_message, waiting_train_msq);
             exit(0);
         }
 
-        open_gates();
+        
 
         //Czeka na skonczenie procesów sprawdzajacych warunki odjazdu
         int status;
         finished_pid = wait(&status);
         if (finished_pid == wait_time_pid) {
-            // Nie pozwalamy pasażerom na wsiadanie
-            close_gates();
-
-            // Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
-            kill(train_ID, SIGUSR1);
-
+            // KONIEC CZASU
+            //Usuwanie drugiego procesu sprawdzającego
             printf("\nZawiadowca: pociąg stoi za długo.");
             log_to_file("\nZawiadowca: pociąg stoi za długo.");
             kill(wait_loaded_pid, SIGKILL);
@@ -169,7 +176,34 @@ int main(int argc, char *argv[]) {
             // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
             wait(NULL);
 
+            // Nie pozwalamy pasażerom na wsiadanie
+            close_gates();
+
+            // Wysyłamy sygnał 1 do kierownika, żeby pominął załadunek
+            kill(train_ID, SIGUSR1);
+
+            close_gates();
+
+            printf("\nZawiadowca: Czeka aż Pociąg %d potwierdzi zaprzestanie ładowania.", train_ID);
+            log_to_file("\nZawiadowca: Czeka aż Pociąg %d  potwierdzi zaprzestanie ładowania.", train_ID);
+            // Czeka aż potwierdzi zaprzestanie ładowania
+            while (1) {
+                if (receive_message_no_wait(waiting_train_msq, 4, train_message)) break;
+                if (receive_message_no_wait(waiting_train_msq, 6, train_message)) break;
+            }; 
+            receive_message_no_wait(waiting_train_msq, 4, train_message);
+            receive_message_no_wait(waiting_train_msq, 6, train_message);
+            printf("\nZawiadowca: Pociąg %d przerwał załadunek",train_ID);
+            log_to_file("\nZawiadowca: Pociąg %d przerwał załadunek",train_ID);
+
+            printf("\nZawiadowca: Wydanie decyzji o tym co ma zrobić pociąg %d ", train_ID);
+            log_to_file("\nZawiadowca: Wydanie decyzji o tym co ma zrobić pociąg %d ", train_ID);
+            // Wydanie decyzji o tym co ma zrobić pociąg
+            train_message->mtype = 5;
+            train_message->ktype = 0;
+            send_message(waiting_train_msq, train_message);
             // Czekamy aż wszyscy pasażerowie zejdą z wejścia
+            close_gates();
             while (sem_waiters(entrance_sem, 0) != 0 || sem_waiters(entrance_sem, 1) != 0)
             {
                 printf("\nZawiadowca: oczekiwanie na zejście pasażerów.");
@@ -185,21 +219,30 @@ int main(int argc, char *argv[]) {
 
             // Zezwalamy na odjazd pociągu
             train_message->mtype = 2;
+            train_message->ktype = train_ID;
             send_message(waiting_train_msq, train_message);
             printf("\nZawiadowca: pociąg %d może odjechać.", train_ID);
             log_to_file("\nZawiadowca: pociąg %d może odjechać.", train_ID);
         } else {
-            // Nie pozwalamy pasażerom na wsiadanie
-            close_gates();
-
-            printf("\nZawiadowca: pociąg %d jest pełny.", train_ID);
-            log_to_file("\nZawiadowca: pociąg %d jest pełny.", train_ID);
             kill(wait_time_pid, SIGKILL);
 
             // Odbieramy zakończenie drugiego dziecka, żeby uniknąć 'zombie'
             wait(NULL);
+            // POCIĄG JEST PEŁNY
+
+            // Nie pozwalamy pasażerom na wsiadanie
+            close_gates();
+
+            // Wydanie decyzji o tym co ma zrobić pociąg
+            train_message->mtype = 5;
+            train_message->ktype = 1;
+            send_message(waiting_train_msq, train_message);
+
+            printf("\nZawiadowca: pociąg %d jest pełny.", train_ID);
+            log_to_file("\nZawiadowca: pociąg %d jest pełny.", train_ID);
 
             // Czekamy aż wszyscy pasażerowie zejdą z wejścia
+            close_gates();
             while (sem_waiters(entrance_sem, 0) != 0 || sem_waiters(entrance_sem, 1) != 0)
             {
                 printf("\nZawiadowca: oczekiwanie na zejście pasażerów.");
@@ -217,15 +260,18 @@ int main(int argc, char *argv[]) {
             // Pociąg jest pełny
             // Zezwalamy na odjazd pociągu
             train_message->mtype = 2;
+            train_message->ktype = train_ID;
             send_message(waiting_train_msq, train_message);
             printf("\nZawiadowca: pociąg %d może odjechać.", train_ID);
             log_to_file("\nZawiadowca: pociąg %d może odjechać.", train_ID);
         }
-        
+
+        printf("\nZawiadowca: czeka aż %d potwierdzi odjazd.",train_ID);
+        log_to_file("\nZawiadowca: czeka aż %d potwierdzi odjazd.",train_ID);
         // Czeka aż potwierdzi odjazd
         receive_message(waiting_train_msq,3,train_message);
-        printf("\nPociąg %ld odjechał",train_message->ktype);
-        log_to_file("\nPociąg %ld odjechał",train_message->ktype);
+        printf("\nPociąg %d odjechał",train_ID);
+        log_to_file("\nPociąg %d odjechał",train_ID);
 
         // Oczekiwanie na pociąg
         printf("\nZawiadowca: oczekiwanie na pociąg.");
