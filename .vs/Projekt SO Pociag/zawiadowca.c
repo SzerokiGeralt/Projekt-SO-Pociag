@@ -51,7 +51,6 @@ void force_passanger_exit_queue(int platform_sem, int entrance_sem) {
             log_to_file("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
             usleep(INTERVAL_TIME*TIME_SCALE);
         }
-        
     }
     if (receive_message_no_wait(get_message_queue(".", 1), 1, entrance_message)) {
         printf("\nZawiadowca: wykryto pasażera %ld u progu proszenie o wyjście.", entrance_message->ktype);
@@ -70,7 +69,7 @@ void force_passanger_exit_queue(int platform_sem, int entrance_sem) {
             printf("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
             log_to_file("\nZawiadowca: oczekiwanie na powrót pasażera %ld.", temp_pid);
             usleep(INTERVAL_TIME*TIME_SCALE);
-        }        
+        }   
     }
     free(entrance_message);
     printf("\nZawiadowca: wszyscy odeszli od krawędzi");
@@ -108,6 +107,14 @@ int main(int argc, char *argv[]) {
     }
     sem_set_value(platform_sem, 0, 0);
     sem_set_value(platform_sem, 1, 0);
+
+
+    int *active_count = (int *)shmat(shared_mem_create(".",2,sizeof(int)), NULL, 0);
+    if (active_count == (void *)-1) {
+        perror("Błąd dołączania pamięci współdzielonej");
+        exit(1);
+    }
+    *active_count = 0;
 
     // Semafor do otwierania i zamykania wejść do pociagu
     int entrance_sem = sem_create_once(".", 2, 2);
@@ -216,14 +223,12 @@ int main(int argc, char *argv[]) {
             send_message(waiting_train_msq, train_message);
             // Czekamy aż wszyscy pasażerowie zejdą z wejścia
             //close_gates();
-            while (sem_waiters(entrance_sem, 0) != 0 || sem_waiters(entrance_sem, 1) != 0)
+            while (*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1) != 0)
             {
                 printf("\nZawiadowca: oczekiwanie na zejście pasażerów.");
                 log_to_file("\nZawiadowca: oczekiwanie na zejście pasażerów.");
-                printf("\n%d",sem_waiters(entrance_sem, 0));
-                log_to_file("\n%d",sem_waiters(entrance_sem, 0));
-                printf("\n%d",sem_waiters(entrance_sem, 1));
-                log_to_file("\n%d",sem_waiters(entrance_sem, 1));
+                printf("\nPotencjalnie czeka: %d",*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1));
+                log_to_file("\nPotencjalnie czeka: %d",*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1));
                 force_passanger_exit_queue(platform_sem,entrance_sem);
                 usleep(INTERVAL_TIME*TIME_SCALE);
             }
@@ -259,16 +264,15 @@ int main(int argc, char *argv[]) {
 
             // Czekamy aż wszyscy pasażerowie zejdą z wejścia
             //close_gates();
-            while (sem_waiters(entrance_sem, 0) != 0 || sem_waiters(entrance_sem, 1) != 0)
+            while (*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1) != 0)
             {
                 printf("\nZawiadowca: oczekiwanie na zejście pasażerów.");
                 log_to_file("\nZawiadowca: oczekiwanie na zejście pasażerów.");
-                printf("\n%d",sem_waiters(entrance_sem, 0));
-                log_to_file("\n%d",sem_waiters(entrance_sem, 0));
-                printf("\n%d",sem_waiters(entrance_sem, 1));
-                log_to_file("\n%d",sem_waiters(entrance_sem, 1));
+                printf("\nPotencjalnie czeka: %d",*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1));
+                log_to_file("\nPotencjalnie czeka: %d",*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1));
                 force_passanger_exit_queue(platform_sem,entrance_sem);
-                usleep(INTERVAL_TIME*TIME_SCALE);
+                force_passanger_exit_queue(platform_sem,entrance_sem);
+                usleep(INTERVAL_TIME*TIME_SCALE);            
             }
             
             

@@ -42,7 +42,9 @@
 // Używane w pętlach aby oszczędzić zasoby procesora
 #define INTERVAL_TIME 1
 // Ilość tworzonych pasażerów (używane w master.c)
-#define SPAWN_PASSANGERS 300
+#define SPAWN_PASSANGERS 1000
+// Czy generować pliki log dla kazdego procesu
+#define LOG_FILES_ENABLED 0
 
 // Struktura komunikatu
 struct message {
@@ -64,22 +66,24 @@ void my_error(const char *msg, int id) {
 
 // Funkcja do zapisywania logów do pliku
 void log_to_file(const char *format, ...) {
-    char filename[256];
-    snprintf(filename, sizeof(filename), "log_%d.txt", getpid());
+    if (LOG_FILES_ENABLED) {
+        char filename[256];
+        snprintf(filename, sizeof(filename), "log_%d.txt", getpid());
 
-    FILE *file = fopen(filename, "a");
-    if (file == NULL) {
-        my_error("Blad otwierania pliku logu", -1);
-        return;
+        FILE *file = fopen(filename, "a");
+        if (file == NULL) {
+            my_error("Blad otwierania pliku logu", -1);
+            return;
+        }
+
+        va_list args;
+        va_start(args, format);
+        vfprintf(file, format, args);
+        va_end(args);
+
+        fprintf(file, "\n");
+        fclose(file);
     }
-
-    va_list args;
-    va_start(args, format);
-    vfprintf(file, format, args);
-    va_end(args);
-
-    fprintf(file, "\n");
-    fclose(file);
 }
 
 // Tworzy lub uzyskuje dostęp do kolejki komunikatów, zwraca message queue ID
@@ -129,8 +133,6 @@ void destroy_message_queue(int msq_ID) {
 // Odbiera pierwszy komunikat typu msgtype bez możliwości przerwania przez sygnał
 int receive_message(int msq_ID, long msgtype, struct message *msg) {
     while (1) {
-        log_to_file("\nOdbieranie komunikatu o typie: %ld z kolejki: %d", msgtype, msq_ID);
-        printf("\nOdbieranie komunikatu o typie: %ld z kolejki: %d", msgtype, msq_ID);
         if (msgrcv(msq_ID, msg, sizeof(*msg) - sizeof(long), msgtype, 0) == -1) {
             if (errno == EINTR) {
                 log_to_file("Przerwano przez sygnał podczas odbierania komunikatu o typie: %ld", msgtype);

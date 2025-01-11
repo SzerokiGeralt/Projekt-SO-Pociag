@@ -35,6 +35,12 @@ int main() {
         usleep(INTERVAL_TIME*TIME_SCALE);
     }
 
+    int *active_count = (int *)shmat(shared_mem_get(".",2), NULL, 0);
+    if (active_count == (void *)-1) {
+        perror("Błąd dołączania pamięci współdzielonej");
+        exit(1);
+    }
+
     printf("\nPasazer: Nowy pasazer PID: %d", id);
     log_to_file("\nPasazer: Nowy pasazer PID: %d", id);
     if (has_bike) {
@@ -47,6 +53,8 @@ int main() {
     struct message* entrance_message = malloc(sizeof(struct message));
     entrance_message->ktype = id;
     entrance_message->mtype = 1;
+
+    __sync_add_and_fetch(active_count, 1);
 
     //Główny if pasażera
     if (has_bike) {
@@ -104,6 +112,8 @@ int main() {
             break;
         }
     }
+
+    __sync_sub_and_fetch(active_count, 1);
 
     //wsiada do pociągu
     printf("\nPasazer: Pasazer %d wsiadł do pociągu", id);
