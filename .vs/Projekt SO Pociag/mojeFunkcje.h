@@ -176,18 +176,23 @@ int receive_message_interruptible(int msq_ID, long msgtype, struct message *msg)
 
 //Odbiera pierwszy komunikat typu msgtype bez czekania
 int receive_message_no_wait(int msq_ID, long msgtype, struct message *msg) {
-    if (msgrcv(msq_ID, msg, sizeof(*msg) - sizeof(long), msgtype, IPC_NOWAIT) == -1) {
-        if (errno == ENOMSG) {
-            //Brak komunikatu
-            return 0;
-        } else {
-            //Błąd
-            my_error("Blad recieve_message_no_wait", msq_ID);
-            return -1;
+    while (1) {
+        if (msgrcv(msq_ID, msg, sizeof(*msg) - sizeof(long), msgtype, IPC_NOWAIT) == -1) {
+            if (errno == EINTR) {
+                // Przerwane przez sygnał – ponawiamy
+                continue;
+            } else if (errno == ENOMSG) {
+                // Brak komunikatu
+                return 0;
+            } else {
+                // Błąd
+                my_error("Blad recieve_message_no_wait", msq_ID);
+                return -1;
+            }
         }
+        // Sukces
+        return 1;
     }
-    //Sukces
-    return 1;
 }
 
 // Tworzy semafor z klucza "unique_path" oraz "project_name" o liczbie semaforów "nsems"
@@ -293,6 +298,8 @@ void sem_wait(int sem_ID, int num) {
 // Operacja P (czekanie na semafor) z możliwością przerwania przez sygnał
 // Zwraca 0 jeśli przerwane, 1 jeśli wykonane
 int sem_wait_interruptible(int sem_ID, int num) {
+    log_to_file("\nsem_wait_interruptible %d",getpid());
+    printf("\nsem_wait_interruptible %d",getpid());
     struct sembuf sops = {num, -1, 0};
     if (semop(sem_ID, &sops, 1) == -1) {
         if (errno == EINTR) {
@@ -308,10 +315,19 @@ int sem_wait_interruptible(int sem_ID, int num) {
 // Operacja V (podnoszenie semafora)
 void sem_raise(int sem_ID, int num) {
     struct sembuf sops = {num, 1, 0};
-    if (semop(sem_ID, &sops, 1) == -1) {
-        printf("Blad raise %d %d\n", sem_ID, num);
-        my_error("Blad raise", sem_ID);
-        exit(1);
+    while (1) {
+        if (semop(sem_ID, &sops, 1) == -1) {
+            if (errno == EINTR) {
+                log_to_file("Przerwano przez sygnał podczas podnoszenia semafora");
+                printf("Przerwano przez sygnał podczas podnoszenia semafora\n");
+                // Przerwane przez sygnał – ponawiamy
+                continue;
+            }
+            printf("Blad raise %d %d\n", sem_ID, num);
+            my_error("Blad raise", sem_ID);
+            exit(1);
+        }
+        break;
     }
 }
 

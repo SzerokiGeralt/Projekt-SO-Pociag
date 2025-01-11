@@ -129,6 +129,11 @@ int main() {
                     passanger_pid = entrance_message->ktype;
                     train[passengers] = passanger_pid;
                     passengers++;
+                    if (sem_waiters(entrance_sem,0) > 1) {
+                        log_to_file("\nKierownik: za dużo czekających! %d.", sem_waiters(entrance_sem,0));
+                        printf("\nKKierownik: za dużo czekających!  %d.", sem_waiters(entrance_sem,0));
+                        exit(1);
+                    }
                     sem_raise(entrance_sem, 0);
                     receive_message(msq0,passanger_pid,entrance_message);
                     if (passengers < MAX_PASSANGERS && skip_loading == 0) {
@@ -146,6 +151,11 @@ int main() {
                     train[passengers] = passanger_pid;
                     passengers++;
                     bikes++;
+                    if (sem_waiters(entrance_sem,1) > 1) {
+                        log_to_file("\nKierownik: za dużo czekających! %d.", sem_waiters(entrance_sem,1));
+                        printf("\nKKierownik: za dużo czekających!  %d.", sem_waiters(entrance_sem,1));
+                        exit(1);
+                    }
                     sem_raise(entrance_sem, 1);
                     receive_message(msq1,passanger_pid,entrance_message);
                     if (bikes < MAX_BIKES && passengers < MAX_PASSANGERS && skip_loading == 0) {
@@ -163,7 +173,11 @@ int main() {
         printf("\nKierownik: Powiadomienie zawiadowcy, że przerwano ładowanie pociągu %d powód: %d.", train_ID, skip_loading ? 4 : 6);
         // Powiadomienie zawiadowcy, że przerwano ładowanie
         train_message->ktype = train_ID;
-        train_message->mtype = skip_loading ? 4 : 6; // 4 - skip loading 6 - full
+        if (skip_loading == 0) {
+            train_message->mtype = 6;
+            send_message(my_msq, train_message);
+        } 
+        train_message->mtype =  4;
         send_message(my_msq, train_message);
 
         log_to_file("\nKierownik: pociąg %d czeka na decyzję zawiadowcy.", train_ID);

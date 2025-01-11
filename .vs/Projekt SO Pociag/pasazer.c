@@ -53,9 +53,10 @@ int main() {
         while (1) {
             printf("\nPasazer: Pasazer %d z rowerem czeka na peronie", id);
             log_to_file("\nPasazer: Pasazer %d z rowerem czeka na peronie", id);
-            sem_wait(platform_sem, 1);
             entrance = get_message_queue(".", 1);
+            entrance_message->ktype = getpid();
             entrance_message->mtype = 1;
+            sem_wait(platform_sem, 1);
             send_message(entrance, entrance_message);
             printf("\nPasazer: Pasazer %d z rowerem czeka u progu", id);
             log_to_file("\nPasazer: Pasazer %d z rowerem czeka u progu", id);
@@ -65,13 +66,13 @@ int main() {
                 log_to_file("\nPasazer %d wraca na peron. 1", id);
                 continue;
             }
-            if (sem_wait_interruptible(entrance_sem, 1) == 0 || reset) {
+            if (sem_wait_interruptible(entrance_sem, 1) == 0) {
                 printf("\nPasazer %d wraca na peron. 2", id);
                 log_to_file("\nPasazer %d wraca na peron. 2", id);
                 reset = 0;
                 continue;
             }
-            entrance_message->mtype = id;
+            entrance_message->mtype = getpid();
             send_message(entrance, entrance_message);
             break;
         }
@@ -79,9 +80,10 @@ int main() {
         while (1) {
             printf("\nPasazer: Pasazer %d czeka na peronie", id);
             log_to_file("\nPasazer: Pasazer %d czeka na peronie", id);
-            sem_wait(platform_sem, 0);
             entrance = get_message_queue(".", 0);
+            entrance_message->ktype = getpid();
             entrance_message->mtype = 1;
+            sem_wait(platform_sem, 0);
             send_message(entrance, entrance_message);
             printf("\nPasazer: Pasazer %d czeka u progu", id);
             log_to_file("\nPasazer: Pasazer %d czeka u progu", id);
@@ -91,13 +93,13 @@ int main() {
                 log_to_file("\nPasazer %d wraca na peron. 4", id);
                 continue;
             }
-            if (sem_wait_interruptible(entrance_sem, 0) == 0 || reset) {
+            if (sem_wait_interruptible(entrance_sem, 0) == 0) {
                 printf("\nPasazer %d wraca na peron. 5", id);
                 log_to_file("\nPasazer %d wraca na peron. 5", id);
                 reset = 0;
                 continue;
             }
-            entrance_message->mtype = id;
+            entrance_message->mtype = getpid();
             send_message(entrance, entrance_message);
             break;
         }
