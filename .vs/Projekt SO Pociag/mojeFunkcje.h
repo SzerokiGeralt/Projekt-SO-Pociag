@@ -26,7 +26,7 @@
 // Prawa dostepu do elementów IPC
 #define ACCESS_RIGHTS 0600
 // Skala czasu symulacji
-#define TIME_SCALE 0
+#define TIME_SCALE 100
 // Czas podróży pociągu
 #define TRAVEL_TIME 10
 // Maksymalny czas oczekiwania na załadunek
@@ -42,9 +42,9 @@
 // Używane w pętlach aby oszczędzić zasoby procesora
 #define INTERVAL_TIME 0.2
 // Ilość tworzonych pasażerów (używane w master.c)
-#define SPAWN_PASSANGERS 10000
+#define SPAWN_PASSANGERS 300
 // Czy generować pliki log dla kazdego procesu
-#define LOG_FILES_ENABLED 0
+#define LOG_FILES_ENABLED 1
 
 // Struktura komunikatu
 struct message {
@@ -418,20 +418,20 @@ int shared_mem_get_return(char* unique_path, int project_name) {
     return mem_ID;
 }
 
-// Dołączanie do pamięci współdzielonej jak tablica znaków
+// Dołączanie do pamięci współdzielonej jako znak
 char* shared_mem_attach_char(int mem_ID) {
     char *shared_mem = (char *)shmat(mem_ID, NULL, 0);
-    if (shared_mem == (char *)-1) {
+    if (shared_mem == (void *)-1) {
         my_error("Blad dolaczania pamieci wspoldzielonej", mem_ID);
         exit(1);
     }
     return shared_mem;
 }
 
-// Dołączanie do pamięci współdzielonej jak tablica intów
+// Dołączanie do pamięci współdzielonej jako int
 int* shared_mem_attach_int(int mem_ID) {
     int *shared_mem = (int *)shmat(mem_ID, NULL, 0);
-    if (shared_mem == (int *)-1) {
+    if (shared_mem == (void *)-1) {
         my_error("Blad dolaczania pamieci wspoldzielonej", mem_ID);
         exit(1);
     }

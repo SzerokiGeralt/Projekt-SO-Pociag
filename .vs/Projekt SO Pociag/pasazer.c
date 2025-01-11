@@ -35,11 +35,12 @@ int main() {
         usleep(INTERVAL_TIME*TIME_SCALE);
     }
 
-    int *active_count = (int *)shmat(shared_mem_get(".",2), NULL, 0);
-    if (active_count == (void *)-1) {
-        perror("Błąd dołączania pamięci współdzielonej");
-        exit(1);
+    int active_count;
+        while ((active_count = shared_mem_get_return(".",2)) == -1) {
+        //printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        usleep(INTERVAL_TIME*TIME_SCALE);
     }
+    int* active_count_ptr = shared_mem_attach_int(active_count);
 
     printf("\nPasazer: Nowy pasazer PID: %d", id);
     log_to_file("\nPasazer: Nowy pasazer PID: %d", id);
@@ -54,7 +55,8 @@ int main() {
     entrance_message->ktype = id;
     entrance_message->mtype = 1;
 
-    __sync_add_and_fetch(active_count, 1);
+    // Incrementuje liczbe aktywnych pasazerow
+    __sync_add_and_fetch(active_count_ptr, 1);
 
     //Główny if pasażera
     if (has_bike) {
@@ -113,7 +115,8 @@ int main() {
         }
     }
 
-    __sync_sub_and_fetch(active_count, 1);
+    // Decrementacja liczby aktywnych pasazerow
+    __sync_sub_and_fetch(active_count_ptr, 1);
 
     //wsiada do pociągu
     printf("\nPasazer: Pasazer %d wsiadł do pociągu", id);
