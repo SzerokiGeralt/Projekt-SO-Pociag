@@ -12,6 +12,7 @@ void handle_sigint(int sig) {
     sem_destroy(sem_get(".", 2, 2));
     sem_destroy(sem_get(".", 3, 1));
     shared_mem_destroy(shared_mem_get(".", 1));
+    shared_mem_destroy(shared_mem_get(".", 2));
     exit(0);
 }
 

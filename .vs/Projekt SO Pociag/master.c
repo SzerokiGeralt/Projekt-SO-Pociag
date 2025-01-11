@@ -28,7 +28,7 @@ int main() {
             perror("Nie udalo sie uruchomic procesu pasazer");
             exit(1);
         }
-        //usleep(rand() % PASSANGER_SPAWNRATE * TIME_SCALE);
+        usleep(rand() % PASSANGER_SPAWNRATE * TIME_SCALE);
     }
 
     // Uruchomienie procesów kierownika pociągu
