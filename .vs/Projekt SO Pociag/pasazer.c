@@ -9,9 +9,9 @@ void handle_sigint() {
 }
 
 void handle_sigusr2() {
+    reset = 1;
     printf("\nPasazer %d otrzymal sygnal SIGUSR2", getpid());
     log_to_file("\nPasazer %d otrzymal sygnal SIGUSR2", getpid());
-    reset = 1;
 }
 
 int main() {
@@ -74,10 +74,19 @@ int main() {
                 log_to_file("\nPasazer %d wraca na peron. 1", id);
                 continue;
             }
-            if (sem_wait_interruptible(entrance_sem, 1) == 0) {
+            while (1) {
+                if (sem_wait_interruptible(entrance_sem, 1) == 0) {
+                    if (reset) {
+                        break;
+                    }
+                    continue;
+                }
+                break;
+            }
+            if (reset) {
+                reset = 0;
                 printf("\nPasazer %d wraca na peron. 2", id);
                 log_to_file("\nPasazer %d wraca na peron. 2", id);
-                reset = 0;
                 continue;
             }
             entrance_message->mtype = getpid();
@@ -101,10 +110,19 @@ int main() {
                 log_to_file("\nPasazer %d wraca na peron. 4", id);
                 continue;
             }
-            if (sem_wait_interruptible(entrance_sem, 0) == 0) {
+            while (1) {
+                if (sem_wait_interruptible(entrance_sem, 0) == 0) {
+                    if (reset) {
+                        break;
+                    }
+                    continue;
+                }
+                break;
+            }
+            if (reset) {
+                reset = 0;
                 printf("\nPasazer %d wraca na peron. 5", id);
                 log_to_file("\nPasazer %d wraca na peron. 5", id);
-                reset = 0;
                 continue;
             }
             entrance_message->mtype = getpid();

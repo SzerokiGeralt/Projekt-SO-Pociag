@@ -22,31 +22,31 @@
 #include <stdarg.h>
 
 
-// Stałe używane do kontrolowania projektu
+// Stałe używane do kontrolowania programu
 // Prawa dostepu do elementów IPC
 #define ACCESS_RIGHTS 0600
 // Skala czasu symulacji
-#define TIME_SCALE 1000000
+#define TIME_SCALE 10000
 // Czas podróży pociągu
-#define TRAVEL_TIME 30
+#define TRAVEL_TIME 10
 // Maksymalny czas oczekiwania na załadunek
 #define MAX_WAITTIME 10
 // Maksymalna liczba pociągów
-#define MAX_TRAINS 10
+#define MAX_TRAINS 100
 // Maksymalna liczba pasażerów
-#define MAX_PASSANGERS 500
+#define MAX_PASSANGERS 40
 // Maksymalna liczba rowerów
-#define MAX_BIKES 50
+#define MAX_BIKES 25
 // Częstotliwość generowania pasażerów (używane w master.c)
-#define PASSANGER_SPAWNRATE 5
+#define PASSANGER_SPAWNRATE 1
 // Używane w pętlach aby oszczędzić zasoby procesora
 #define INTERVAL_TIME 1
 // Ilość tworzonych pasażerów (używane w master.c)
-#define SPAWN_PASSANGERS 500
+#define SPAWN_PASSANGERS 100
 // Czy generować pliki log dla kazdego procesu
 #define LOG_FILES_ENABLED 0
 // Czy tworzyć pasażerów przed innymi procesami
-#define SPAWN_PASSANGERS_FIRST 0
+#define SPAWN_PASSANGERS_FIRST 1
 // Dodatkowe opisy akcji
 #define ADDITIONAL_LOGS 0
 
