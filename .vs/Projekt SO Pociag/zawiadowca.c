@@ -30,7 +30,9 @@ int wait_loaded(struct message* train_message, int msq_ID) {
 
 void force_passanger_exit_queue(int platform_sem, int entrance_sem) {
     int returned = 0;
-    //printf("\nZawiadowca: Prosze odsunac sie od krawedzi peronu.");
+    if (ADDITIONAL_LOGS) {
+        printf("\nZawiadowca: Prosze odsunac sie od krawedzi peronu.");
+    }
     struct message* entrance_message = malloc(sizeof(struct message));
     long temp_pid = 0;
     // Wysłanie sygnału do czekajacych pasażerów o opuszczeniu kolejki

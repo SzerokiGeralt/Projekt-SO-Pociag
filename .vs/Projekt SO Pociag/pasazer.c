@@ -26,12 +26,16 @@ int main() {
     int id = getpid();
     int platform_sem;
     while ((platform_sem = sem_get_return(".", 1, 2)) == -1) {
-        //printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        if (ADDITIONAL_LOGS) {
+            printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        }
         usleep(INTERVAL_TIME*TIME_SCALE);
     }
     int entrance_sem;
     while ((entrance_sem = sem_get_return(".", 2, 2)) == -1) {
-        //printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        if (ADDITIONAL_LOGS) {
+            printf("\nPasazer : Brak zawiadowcy. Czekam %d ...", id);
+        }
         usleep(INTERVAL_TIME*TIME_SCALE);
     }
 

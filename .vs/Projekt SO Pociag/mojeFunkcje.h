@@ -26,29 +26,29 @@
 // Prawa dostepu do elementów IPC
 #define ACCESS_RIGHTS 0600
 // Skala czasu symulacji
-#define TIME_SCALE 10000
+#define TIME_SCALE 1000000
 // Czas podróży pociągu
 #define TRAVEL_TIME 10
 // Maksymalny czas oczekiwania na załadunek
 #define MAX_WAITTIME 10
 // Maksymalna liczba pociągów
-#define MAX_TRAINS 100
+#define MAX_TRAINS 3
 // Maksymalna liczba pasażerów
-#define MAX_PASSANGERS 40
+#define MAX_PASSANGERS 0
 // Maksymalna liczba rowerów
-#define MAX_BIKES 25
+#define MAX_BIKES 10
 // Częstotliwość generowania pasażerów (używane w master.c)
 #define PASSANGER_SPAWNRATE 1
 // Używane w pętlach aby oszczędzić zasoby procesora
 #define INTERVAL_TIME 1
 // Ilość tworzonych pasażerów (używane w master.c)
-#define SPAWN_PASSANGERS 100
+#define SPAWN_PASSANGERS 10
 // Czy generować pliki log dla kazdego procesu
 #define LOG_FILES_ENABLED 0
 // Czy tworzyć pasażerów przed innymi procesami
 #define SPAWN_PASSANGERS_FIRST 1
 // Dodatkowe opisy akcji
-#define ADDITIONAL_LOGS 0
+#define ADDITIONAL_LOGS 1
 
 // Struktura komunikatu
 struct message {
