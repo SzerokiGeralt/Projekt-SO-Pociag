@@ -3,7 +3,6 @@
 int reset = 0;
 
 void handle_sigint() {
-    shared_mem_detach(shared_mem_get(".",2));
     printf("\nPasazer %d dotarl do destynacji", getpid());
     log_to_file("\nPasazer %d dotarl do destynacji", getpid());
     exit(0);
