@@ -3,6 +3,7 @@
 int reset = 0;
 
 void handle_sigint() {
+    shared_mem_detach(shared_mem_get(".",2));
     printf("\nPasazer %d dotarl do destynacji", getpid());
     log_to_file("\nPasazer %d dotarl do destynacji", getpid());
     exit(0);
@@ -114,6 +115,7 @@ int main() {
     }
 
     __sync_sub_and_fetch(active_count, 1);
+    shared_mem_detach(active_count);
 
     //wsiada do pociągu
     printf("\nPasazer: Pasazer %d wsiadł do pociągu", id);

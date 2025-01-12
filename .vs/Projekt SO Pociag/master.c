@@ -21,15 +21,18 @@ int main() {
 
     printf("Uruchomiono zaawansowana symulacje kolejowa\nstworzona przez Karol Kapusta.\nProject not sponsored by \"Koleje Malopolskie\"\n\n");
 
-    // Uruchomienie procesów pasażerów
-    for (int i = 0; i < SPAWN_PASSANGERS ; i++) {
-        if (fork() == 0) {
-            execl("./pasazer", "pasazer", NULL);
-            perror("Nie udalo sie uruchomic procesu pasazer");
-            exit(1);
+    if (SPAWN_PASSANGERS_FIRST) {
+        // Uruchomienie procesów pasażerów
+        for (int i = 0; i < SPAWN_PASSANGERS ; i++) {
+            if (fork() == 0) {
+                execl("./pasazer", "pasazer", NULL);
+                perror("Nie udalo sie uruchomic procesu pasazer");
+                exit(1);
+            }
+            usleep(rand() % PASSANGER_SPAWNRATE * TIME_SCALE);
         }
-        usleep(rand() % PASSANGER_SPAWNRATE * TIME_SCALE);
     }
+
 
     // Uruchomienie procesów kierownika pociągu
     for (int i = 0; i < MAX_TRAINS ; i++) {
@@ -47,6 +50,18 @@ int main() {
         exit(1);
     }
 
+
+    if (!SPAWN_PASSANGERS_FIRST) {
+        // Uruchomienie procesów pasażerów
+        for (int i = 0; i < SPAWN_PASSANGERS ; i++) {
+            if (fork() == 0) {
+                execl("./pasazer", "pasazer", NULL);
+                perror("Nie udalo sie uruchomic procesu pasazer");
+                exit(1);
+            }
+            usleep(rand() % PASSANGER_SPAWNRATE * TIME_SCALE);
+        }
+    }
 
 
 

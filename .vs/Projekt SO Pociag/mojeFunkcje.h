@@ -26,25 +26,29 @@
 // Prawa dostepu do elementów IPC
 #define ACCESS_RIGHTS 0600
 // Skala czasu symulacji
-#define TIME_SCALE 0
+#define TIME_SCALE 1000000
 // Czas podróży pociągu
-#define TRAVEL_TIME 10
+#define TRAVEL_TIME 30
 // Maksymalny czas oczekiwania na załadunek
-#define MAX_WAITTIME 5
+#define MAX_WAITTIME 10
 // Maksymalna liczba pociągów
-#define MAX_TRAINS 3
+#define MAX_TRAINS 10
 // Maksymalna liczba pasażerów
-#define MAX_PASSANGERS 200
+#define MAX_PASSANGERS 500
 // Maksymalna liczba rowerów
 #define MAX_BIKES 50
 // Częstotliwość generowania pasażerów (używane w master.c)
 #define PASSANGER_SPAWNRATE 5
 // Używane w pętlach aby oszczędzić zasoby procesora
-#define INTERVAL_TIME 0.2
+#define INTERVAL_TIME 1
 // Ilość tworzonych pasażerów (używane w master.c)
-#define SPAWN_PASSANGERS 10000
+#define SPAWN_PASSANGERS 500
 // Czy generować pliki log dla kazdego procesu
 #define LOG_FILES_ENABLED 0
+// Czy tworzyć pasażerów przed innymi procesami
+#define SPAWN_PASSANGERS_FIRST 0
+// Dodatkowe opisy akcji
+#define ADDITIONAL_LOGS 0
 
 // Struktura komunikatu
 struct message {
@@ -106,8 +110,10 @@ int get_message_queue(const char *path, int proj_ID) {
 // Wysyła komunikat
 int send_message(int msq_ID, struct message *msg) {
     while (1) {
-        log_to_file("\nWysyłanie komunikatu o typie: %ld do kolejki: %d", msg->mtype, msq_ID);
-        printf("\nWysyłanie komunikatu o typie: %ld do kolejki: %d", msg->mtype, msq_ID);
+        if (ADDITIONAL_LOGS) {
+            log_to_file("\nWysyłanie komunikatu o typie: %ld do kolejki: %d", msg->mtype, msq_ID);
+            printf("\nWysyłanie komunikatu o typie: %ld do kolejki: %d", msg->mtype, msq_ID);
+        }
         if (msgsnd(msq_ID, msg, sizeof(*msg) - sizeof(long), 0) == -1) {
             if (errno == EINTR) {
                 log_to_file("Przerwano przez sygnał podczas wysyłania komunikatu");
@@ -300,8 +306,10 @@ void sem_wait(int sem_ID, int num) {
 // Operacja P (czekanie na semafor) z możliwością przerwania przez sygnał
 // Zwraca 0 jeśli przerwane, 1 jeśli wykonane
 int sem_wait_interruptible(int sem_ID, int num) {
-    log_to_file("\nsem_wait_interruptible %d",getpid());
-    printf("\nsem_wait_interruptible %d",getpid());
+    if (ADDITIONAL_LOGS) {
+        log_to_file("\nsem_wait_interruptible %d",getpid());
+        printf("\nsem_wait_interruptible %d",getpid());
+    }
     struct sembuf sops = {num, -1, 0};
     if (semop(sem_ID, &sops, 1) == -1) {
         if (errno == EINTR) {
@@ -331,6 +339,21 @@ void sem_raise(int sem_ID, int num) {
         }
         break;
     }
+}
+
+// Operacja V (podnoszenie semafora) z możliwością przerwania przez sygnał
+// Zwraca 0 jeśli przerwane, 1 jeśli wykonane
+int sem_raise_interruptible(int sem_ID, int num) {
+    struct sembuf sops = {num, 1, 0};
+    if (semop(sem_ID, &sops, 1) == -1) {
+        if (errno == EINTR) {
+            return 0;
+        }
+        printf("Blad raise %d %d\n", sem_ID, num);
+        my_error("Blad raise", sem_ID);
+        exit(1);
+    }
+    return 1;
 }
 
 // Opuszczenie semafora
@@ -439,7 +462,7 @@ int* shared_mem_attach_int(int mem_ID) {
 }
 
 // Odłączanie od pamięci współdzielonej
-void shared_mem_detach(char *shared_mem) {
+void shared_mem_detach(void *shared_mem) {
     if (shmdt(shared_mem) == -1) {
         my_error("Blad odlaczania pamieci wspoldzielonej", -1);
         exit(1);

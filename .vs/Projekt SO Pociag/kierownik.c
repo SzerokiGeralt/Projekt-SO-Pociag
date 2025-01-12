@@ -129,15 +129,10 @@ int main() {
                     passanger_pid = entrance_message->ktype;
                     train[passengers] = passanger_pid;
                     passengers++;
-                    if (sem_waiters(entrance_sem,0) > 1) {
-                        log_to_file("\nKierownik: za dużo czekających! %d.", sem_waiters(entrance_sem,0));
-                        printf("\nKKierownik: za dużo czekających!  %d.", sem_waiters(entrance_sem,0));
-                        exit(1);
-                    }
                     sem_raise(entrance_sem, 0);
                     receive_message(msq0,passanger_pid,entrance_message);
                     if (passengers < MAX_PASSANGERS && skip_loading == 0) {
-                        sem_raise(platform_sem, 0);
+                        sem_raise_interruptible(platform_sem, 0);
                     }
                     usleep(INTERVAL_TIME*TIME_SCALE);
                     log_to_file("\nKierownik: pasażer %d wsiadł do pociągu %d.", passanger_pid, train_ID);
@@ -151,15 +146,11 @@ int main() {
                     train[passengers] = passanger_pid;
                     passengers++;
                     bikes++;
-                    if (sem_waiters(entrance_sem,1) > 1) {
-                        log_to_file("\nKierownik: za dużo czekających! %d.", sem_waiters(entrance_sem,1));
-                        printf("\nKKierownik: za dużo czekających!  %d.", sem_waiters(entrance_sem,1));
-                        exit(1);
-                    }
                     sem_raise(entrance_sem, 1);
                     receive_message(msq1,passanger_pid,entrance_message);
                     if (bikes < MAX_BIKES && passengers < MAX_PASSANGERS && skip_loading == 0) {
-                        sem_raise(platform_sem, 1);
+                        sem_raise_interruptible(platform_sem, 1);
+                        
                     }
                     usleep(INTERVAL_TIME*TIME_SCALE);
                     log_to_file("\nKierownik: pasażer %d wsiadł do pociągu %d z rowerem.", passanger_pid, train_ID);

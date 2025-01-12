@@ -224,15 +224,14 @@ int main(int argc, char *argv[]) {
             send_message(waiting_train_msq, train_message);
             // Czekamy aż wszyscy pasażerowie zejdą z wejścia
             //close_gates();
-            while (*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1) != 0)
-            {
+            do {
                 printf("\nZawiadowca: oczekiwanie na zejście pasażerów.");
                 log_to_file("\nZawiadowca: oczekiwanie na zejście pasażerów.");
                 printf("\nPotencjalnie czeka: %d",*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1));
                 log_to_file("\nPotencjalnie czeka: %d",*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1));
                 force_passanger_exit_queue(platform_sem,entrance_sem);
                 usleep(INTERVAL_TIME*TIME_SCALE);
-            }
+            } while (*active_count != sem_waiters(platform_sem,0) + sem_waiters(platform_sem,1));
 
 
             // Zezwalamy na odjazd pociągu
@@ -265,8 +264,7 @@ int main(int argc, char *argv[]) {
 
             // Czekamy aż wszyscy pasażerowie zejdą z wejścia
             //close_gates();
-            while (*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1) != 0)
-            {
+            do {
                 printf("\nZawiadowca: oczekiwanie na zejście pasażerów.");
                 log_to_file("\nZawiadowca: oczekiwanie na zejście pasażerów.");
                 printf("\nPotencjalnie czeka: %d",*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1));
@@ -274,7 +272,7 @@ int main(int argc, char *argv[]) {
                 force_passanger_exit_queue(platform_sem,entrance_sem);
                 force_passanger_exit_queue(platform_sem,entrance_sem);
                 usleep(INTERVAL_TIME*TIME_SCALE);            
-            }
+            } while (*active_count - sem_waiters(platform_sem,0) - sem_waiters(platform_sem,1) != 0);
             
             
 
