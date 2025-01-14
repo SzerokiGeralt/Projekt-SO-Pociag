@@ -1,4 +1,4 @@
-# 🚂 **Projekt: Pociąg z Rowerami** 🚴‍♂️
+# **Projekt: Pociąg z Rowerami**
 
 > **Autor**: Karol Kapusta  
 > **Numer indeksu**: 151441  
@@ -8,15 +8,16 @@
 
 ## 📑 **Spis treści**
 
-1. [🎯 Cel projektu](#🎯-cel-projektu)  
-2. [✨ Cechy szczególne](#✨-cechy-szczególne)  
-3. [🏗️ Struktura projektu](#🏗️-struktura-projektu)  
-4. [📖 Przebieg symulacji](#📖-przebieg-symulacji)  
-5. [🔧 Wykorzystane technologie](#🔧-wykorzystane-technologie)  
+1. [Cel projektu](#cel-projektu)  
+2. [Cechy szczególne](#cechy-szczególne)  
+3. [Struktura projektu](#struktura-projektu)  
+4. [Przebieg symulacji](#przebieg-symulacji)  
+5. [Wykorzystane technologie](#wykorzystane-technologie) 
+6. [Schemat działania](#schemat-działania) 
 
 ---
 
-## 🎯 **Cel projektu**
+## **Cel projektu**
 
 Celem projektu jest stworzenie symulacji dworca kolejowego z dynamiczną obsługą pasażerów i rowerów. W skład systemu wchodzi:
 - **Pociąg pasażerski** o ograniczonej liczbie miejsc na pasażerów i rowery,
@@ -33,7 +34,7 @@ Celem projektu jest stworzenie symulacji dworca kolejowego z dynamiczną obsług
 
 ---
 
-## ✨ **Cechy szczególne**
+## **Cechy szczególne**
 
 - **🕒 Dynamiczne warunki odjazdu**: Pociąg może odjechać, gdy:
   - Minie czas oczekiwania,
@@ -56,7 +57,7 @@ Celem projektu jest stworzenie symulacji dworca kolejowego z dynamiczną obsług
 
 ---
 
-## 🏗️ **Struktura projektu**
+## **Struktura projektu**
 
 Projekt jest podzielony na kilka kluczowych komponentów, z których każdy pełni określoną funkcję:
 
@@ -92,7 +93,7 @@ Projekt jest podzielony na kilka kluczowych komponentów, z których każdy peł
 
 ---
 
-## 📖 **Przebieg symulacji**
+## **Przebieg symulacji**
 
 ### **1. Przygotowanie**
 - Ustawienie parametrów symulacji w pliku `mojeFunkcje.h` (np. skala czasu, liczba pociągów).
@@ -117,7 +118,7 @@ Projekt jest podzielony na kilka kluczowych komponentów, z których każdy peł
 
 ---
 
-## 🔧 **Wykorzystane technologie**
+## **Wykorzystane technologie**
 
 Projekt został stworzony przy użyciu następujących narzędzi i technologii:
 
@@ -136,7 +137,7 @@ Projekt został stworzony przy użyciu następujących narzędzi i technologii:
 ---
 
 
-## 🗺️ **Schemat działania**
+## **Schemat działania**
 
 Poniższy diagram ilustruje ***poglądowy*** (dla starszej wersji) przepływ informacji i komunikacji między procesami w projekcie:
 
